@@ -1,0 +1,30 @@
+name: Stock Bot
+
+on:
+  schedule:
+    - cron: '0 23 * * 1-5'  # 한국시간 오전 8시 (UTC 23시), 월~금
+  workflow_dispatch:          # 수동 실행 버튼
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Python 설치
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 패키지 설치
+        run: pip install pandas numpy yfinance FinanceDataReader anthropic
+
+      - name: 봇 실행
+        env:
+          GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PW: ${{ secrets.GMAIL_APP_PW }}
+          RECEIVE_EMAIL: ${{ secrets.RECEIVE_EMAIL }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python morning_bot_cloud.py

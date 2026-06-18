@@ -1,0 +1,10 @@
+config.py
+*.parquet
+*.tmp
+*.xlsx
+*.pyc
+__pycache__/
+investor_data*
+backtest_result*
+backtest_v7*
+test_*.py
