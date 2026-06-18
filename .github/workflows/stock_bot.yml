@@ -19,7 +19,7 @@ jobs:
           python-version: '3.10'
 
       - name: 패키지 설치
-        run: pip install pandas numpy yfinance FinanceDataReader anthropic
+        run: pip install pandas numpy yfinance finance-datareader anthropic
 
       - name: 봇 실행
         env:
