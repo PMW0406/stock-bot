@@ -59,16 +59,19 @@ def check_us_market():
 
 
 def check_market_state():
-    """코스피+코스닥 둘 다 양호한지 확인"""
+    """코스피/코스닥 각각 상태 반환 - 종목별로 해당 시장만 체크"""
     end   = datetime.today().strftime("%Y-%m-%d")
     start = (datetime.today() - timedelta(days=60)).strftime("%Y-%m-%d")
 
+    market_status = {}
     for code in ["KS11", "KQ11"]:
+        name = "코스피" if code == "KS11" else "코스닥"
         try:
             df = fdr.DataReader(code, start, end)
             df.index = pd.to_datetime(df.index)
             if len(df) < 25:
-                return False, "데이터 부족"
+                market_status[code] = (False, "데이터 부족")
+                continue
             close    = df["Close"]
             ma5      = close.rolling(5).mean()
             ma20     = close.rolling(20).mean()
@@ -77,16 +80,28 @@ def check_market_state():
             ma20_now = float(ma20.iloc[-1])
 
             if c_now < ma20_now:
-                return False, f"{'코스피' if code=='KS11' else '코스닥'} 20일선 이탈"
-            if ma5_now < ma20_now:
-                return False, f"{'코스피' if code=='KS11' else '코스닥'} 5일선<20일선"
-            ret5 = (c_now - float(close.iloc[-6])) / float(close.iloc[-6])
-            if ret5 < 0:
-                return False, f"{'코스피' if code=='KS11' else '코스닥'} 5일 수익률 음수"
+                market_status[code] = (False, f"{name} 20일선 이탈")
+            elif ma5_now < ma20_now:
+                market_status[code] = (False, f"{name} 5일선<20일선")
+            else:
+                ret5 = (c_now - float(close.iloc[-6])) / float(close.iloc[-6])
+                if ret5 < 0:
+                    market_status[code] = (False, f"{name} 5일 수익률 음수")
+                else:
+                    market_status[code] = (True, f"{name} 양호")
         except Exception as e:
-            return False, str(e)
+            market_status[code] = (False, str(e))
 
-    return True, "양호"
+    kospi_ok  = market_status.get("KS11", (False, ""))[0]
+    kosdaq_ok = market_status.get("KQ11", (False, ""))[0]
+
+    # 둘 다 나쁘면 중단
+    if not kospi_ok and not kosdaq_ok:
+        msg = " / ".join([market_status["KS11"][1], market_status["KQ11"][1]])
+        return False, False, msg
+
+    status_msg = " / ".join([market_status["KS11"][1], market_status["KQ11"][1]])
+    return kospi_ok, kosdaq_ok, status_msg
 
 
 def swing_score_and_detail(df):
@@ -167,13 +182,25 @@ def swing_score_and_detail(df):
     return score, must_pass, detail
 
 
-def get_candidates():
-    """매수 후보 종목 스캔"""
+def get_candidates(kospi_ok, kosdaq_ok):
+    """매수 후보 종목 스캔 - 종목별로 해당 시장 필터 적용"""
     print("종목 스캔 중...")
     start = (datetime.today() - timedelta(days=150)).strftime("%Y-%m-%d")
     end   = datetime.today().strftime("%Y-%m-%d")
 
-    all_s    = pd.concat([fdr.StockListing("KOSPI"), fdr.StockListing("KOSDAQ")], ignore_index=True)
+    kospi_list  = fdr.StockListing("KOSPI")
+    kosdaq_list = fdr.StockListing("KOSDAQ")
+
+    # 시장 필터 통과한 시장 종목만 포함
+    dfs = []
+    if kospi_ok:
+        kospi_list["market"] = "KOSPI"
+        dfs.append(kospi_list)
+    if kosdaq_ok:
+        kosdaq_list["market"] = "KOSDAQ"
+        dfs.append(kosdaq_list)
+
+    all_s    = pd.concat(dfs, ignore_index=True)
     filtered = all_s[(all_s["Marcap"] >= MARKET_CAP_MIN) & (all_s["Marcap"] <= MARKET_CAP_MAX)]
     name_map = dict(zip(filtered["Code"], filtered["Name"]))
     tickers  = filtered["Code"].tolist()
@@ -396,11 +423,11 @@ def main():
     sp_ret, nq_ret, sox_ret, us_date = check_us_market()
     print(f"미국 시장 ({us_date}): S&P500 {sp_ret*100:+.2f}% / 나스닥 {nq_ret*100:+.2f}%")
 
-    # 2. 한국 시장 필터
-    market_ok, market_status = check_market_state()
+    # 2. 한국 시장 필터 (코스피/코스닥 각각 체크)
+    kospi_ok, kosdaq_ok, market_status = check_market_state()
     print(f"한국 시장: {market_status}")
 
-    if not market_ok:
+    if not kospi_ok and not kosdaq_ok:
         print(f"시장 조건 미충족 ({market_status}) → 신호 없음 메일 발송")
         send_email(
             f"[주식봇] {datetime.today().strftime('%Y-%m-%d')} 시장 조건 미충족",
@@ -413,8 +440,8 @@ def main():
         )
         return
 
-    # 3. 후보 종목 스캔
-    candidates = get_candidates()
+    # 3. 후보 종목 스캔 (통과한 시장 종목만)
+    candidates = get_candidates(kospi_ok, kosdaq_ok)
     if not candidates:
         print("조건 통과 종목 없음")
         send_email(
