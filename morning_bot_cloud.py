@@ -167,6 +167,13 @@ def swing_score_and_detail(df):
         score += 10
         detail["5일선"] = "회복"
 
+    # 종가 위치 (close_location)
+    h_now    = float(window["High"].iloc[-1])
+    l_now    = float(window["Low"].iloc[-1])
+    hl_range = h_now - l_now
+    cl       = (today["Close"] - l_now) / hl_range if hl_range > 0 else 0.5
+    detail["종가위치"] = f"{cl:.2f}"
+
     # 거래량 터진 음봉 제외
     is_bearish_vol = (today["Close"] < today["Open"]) and (vol_ratio >= 2.0)
 
@@ -175,8 +182,10 @@ def swing_score_and_detail(df):
         ma20_now > ma60_now and
         -8 <= pullback <= -0.5 and
         vol_ratio >= 1.0 and
+        vol_ratio <= 2.5 and        # 거래량 상한 (폭발적 거래량 제외)
         vol_decrease and
-        not is_bearish_vol
+        not is_bearish_vol and
+        0.40 <= cl <= 0.85          # 종가 위치 필터
     )
 
     return score, must_pass, detail

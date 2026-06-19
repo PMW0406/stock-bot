@@ -130,13 +130,21 @@ def swing_score_and_detail(df):
     if not np.isnan(prev_ma5) and (prev_close < prev_ma5) and (today["Close"] > ma5_now):
         score += 10
 
+    # 종가 위치
+    h_now    = float(df.iloc[ref_idx]["High"])
+    l_now    = float(df.iloc[ref_idx]["Low"])
+    hl_range = h_now - l_now
+    cl       = (today["Close"] - l_now) / hl_range if hl_range > 0 else 0.5
+
     is_bearish_vol = (today["Close"] < today["Open"]) and (vol_ratio >= 2.0)
     must_pass = (
         today["Close"] > ma20_now and ma20_now > ma60_now and
-        -8 <= pullback <= -0.5 and vol_ratio >= 1.0 and
-        vol_decrease and not is_bearish_vol
+        -8 <= pullback <= -0.5 and
+        vol_ratio >= 1.0 and vol_ratio <= 2.5 and
+        vol_decrease and not is_bearish_vol and
+        0.40 <= cl <= 0.85
     )
-    return score, must_pass, {"pullback": pullback, "vol_ratio": vol_ratio}
+    return score, must_pass, {"pullback": pullback, "vol_ratio": vol_ratio, "close_loc": cl}
 
 
 def scan_candidates(kospi_ok, kosdaq_ok):
