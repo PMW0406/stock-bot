@@ -10,6 +10,9 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
 import os
 import json
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 import pandas as pd
 import numpy as np
 import FinanceDataReader as fdr
@@ -18,6 +21,10 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import warnings
 warnings.filterwarnings("ignore")
+
+GMAIL_ADDRESS = os.environ.get("GMAIL_ADDRESS", "")
+GMAIL_APP_PW  = os.environ.get("GMAIL_APP_PW", "")
+RECEIVE_EMAIL = os.environ.get("RECEIVE_EMAIL", "")
 
 from kis_trader import get_balance, buy_market, sell_market, get_current_price
 
@@ -241,6 +248,70 @@ def execute_buys(candidates, portfolio, cash):
     return bought
 
 
+# ── 메일 발송 ────────────────────────────────────────────────────────
+
+def send_trade_email(bought, sold, holdings, cash):
+    if not GMAIL_ADDRESS or not RECEIVE_EMAIL:
+        return
+    if not bought and not sold:
+        return
+
+    today = datetime.today().strftime("%Y-%m-%d")
+
+    bought_rows = ""
+    for b in bought:
+        bought_rows += f"<tr><td style='padding:8px;color:#00c853;'>✅ 매수</td><td style='padding:8px;'>{b}</td></tr>"
+
+    sold_rows = ""
+    for s in sold:
+        color = "#ff1744" if "손절" in s else "#64b5f6"
+        icon  = "🛑" if "손절" in s else "✅"
+        sold_rows += f"<tr><td style='padding:8px;color:{color};'>{icon} 매도</td><td style='padding:8px;'>{s}</td></tr>"
+
+    holding_rows = ""
+    for h in holdings:
+        ret_color = "#00c853" if h["수익률"] >= 0 else "#ff1744"
+        holding_rows += f"""
+        <tr>
+          <td style='padding:8px;'>{h['종목명']}</td>
+          <td style='padding:8px;text-align:right;'>{h['보유수량']}주</td>
+          <td style='padding:8px;text-align:right;'>{h['현재가']:,.0f}원</td>
+          <td style='padding:8px;text-align:right;color:{ret_color};'>{h['수익률']:+.1f}%</td>
+        </tr>"""
+
+    html = f"""
+<html><body style='background:#0d0d0d;color:#fff;font-family:sans-serif;padding:20px;'>
+  <div style='max-width:600px;margin:auto;'>
+    <h2 style='color:#64b5f6;'>🤖 자동매매 체결 알림 - {today}</h2>
+
+    <table style='width:100%;background:#1e1e1e;border-radius:8px;margin-bottom:16px;border-collapse:collapse;'>
+      {bought_rows}{sold_rows}
+    </table>
+
+    <div style='background:#1e1e1e;padding:12px;border-radius:8px;margin-bottom:16px;'>
+      <b>예수금:</b> {cash:,.0f}원
+    </div>
+
+    {'<h3 style="color:#aaa;">보유종목 현황</h3><table style="width:100%;background:#1e1e1e;border-radius:8px;border-collapse:collapse;"><tr style="color:#aaa;font-size:13px;background:#2d2d2d;"><th style="padding:8px;text-align:left;">종목</th><th style="padding:8px;text-align:right;">수량</th><th style="padding:8px;text-align:right;">현재가</th><th style="padding:8px;text-align:right;">수익률</th></tr>' + holding_rows + '</table>' if holdings else ''}
+
+    <p style='color:#555;font-size:12px;margin-top:16px;'>자동매매 봇 | 투자 결과는 본인 책임입니다.</p>
+  </div>
+</body></html>"""
+
+    try:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = f"[자동매매] {today} 체결 알림 (매수:{len(bought)} 매도:{len(sold)})"
+        msg["From"]    = GMAIL_ADDRESS
+        msg["To"]      = RECEIVE_EMAIL
+        msg.attach(MIMEText(html, "html", "utf-8"))
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+            smtp.login(GMAIL_ADDRESS, GMAIL_APP_PW)
+            smtp.sendmail(GMAIL_ADDRESS, RECEIVE_EMAIL, msg.as_string())
+        print(f"체결 알림 메일 발송 → {RECEIVE_EMAIL}")
+    except Exception as e:
+        print(f"메일 발송 실패: {e}")
+
+
 # ── 메인 ─────────────────────────────────────────────────────────────
 
 def main():
@@ -257,6 +328,7 @@ def main():
     print(f"추적 중인 종목: {len(portfolio)}개")
 
     # 3. 매도 관리 (손절/기간 만료)
+    sold = []
     if holdings:
         print("\n[매도 검토]")
         sold = manage_sells(portfolio, holdings)
@@ -291,6 +363,10 @@ def main():
     bought = execute_buys(candidates[:MAX_STOCKS], portfolio, cash)
     for b in bought: print(f"  {b}")
     save_portfolio(portfolio)
+
+    # 8. 체결 알림 메일
+    holdings, cash = get_balance()
+    send_trade_email(bought, sold, holdings, cash)
 
     print(f"\n완료! 포트폴리오: {len(portfolio)}개 종목")
 
