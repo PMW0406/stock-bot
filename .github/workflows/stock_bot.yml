@@ -19,12 +19,22 @@ jobs:
           python-version: '3.10'
 
       - name: 패키지 설치
-        run: pip install pandas numpy yfinance finance-datareader anthropic
+        run: pip install pandas numpy yfinance finance-datareader anthropic requests
 
-      - name: 봇 실행
+      - name: 메일 봇 실행 (분석 리포트)
         env:
           GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
           GMAIL_APP_PW: ${{ secrets.GMAIL_APP_PW }}
           RECEIVE_EMAIL: ${{ secrets.RECEIVE_EMAIL }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: python morning_bot_cloud.py
+
+      - name: 자동매매 봇 실행
+        env:
+          KIS_APP_KEY: ${{ secrets.KIS_APP_KEY }}
+          KIS_APP_SECRET: ${{ secrets.KIS_APP_SECRET }}
+          KIS_ACCOUNT: ${{ secrets.KIS_ACCOUNT }}
+          GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PW: ${{ secrets.GMAIL_APP_PW }}
+          RECEIVE_EMAIL: ${{ secrets.RECEIVE_EMAIL }}
+        run: python auto_trader.py
