@@ -402,7 +402,7 @@ def build_email(candidates, sp_ret, nq_ret, sox_ret, us_date,
     {claude_section}
 
     <p style="color:#555;font-size:12px;margin-top:20px;">
-      전략: 추세+눌림목+거래량 회복 | 승률 68% (1년 백테스트) | 평균수익 15.5%<br>
+      전략: 추세+눌림목+거래량 회복 (v13) | 승률 71.4% (백테스트) | 평균수익 15.66%<br>
       목표가/손절가는 Claude AI 분석 기반 (AI 표시)<br>
       투자는 본인 판단 하에 진행하세요.
     </p>
