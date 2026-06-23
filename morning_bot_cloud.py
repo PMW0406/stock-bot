@@ -29,12 +29,13 @@ GMAIL_APP_PW      = os.environ["GMAIL_APP_PW"]
 RECEIVE_EMAIL     = os.environ["RECEIVE_EMAIL"]
 ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
 
-MIN_SCORE      = 70
-TOP_N          = 5
-TARGET_GAIN    = 0.05
-STOP_LOSS      = 0.04
-MARKET_CAP_MIN = 100_000_000_000
-MARKET_CAP_MAX = 5_000_000_000_000
+MIN_SCORE           = 70
+TOP_N               = 5
+TARGET_GAIN         = 0.05
+STOP_LOSS           = 0.04
+MARKET_CAP_MIN      = 100_000_000_000
+MARKET_CAP_MAX      = 5_000_000_000_000
+MIN_TRADING_VALUE   = 3_000_000_000    # 거래대금 30억
 
 
 def calc_rsi(series, period=14):
@@ -104,8 +105,39 @@ def check_market_state():
     return kospi_ok, kosdaq_ok, status_msg
 
 
+def stock_weekly_ok(df):
+    """
+    종목 주봉 필터 (v13.2):
+    - 주봉 종가 > 주봉 MA10
+    - 13주(65일) 수익률 > 0
+    - 52주 고점 대비 -40% 이내
+    """
+    try:
+        df2 = df.copy()
+        df2.index = pd.to_datetime(df2.index)
+        wdf = df2.resample("W").agg({
+            "Open": "first", "High": "max",
+            "Low": "min", "Close": "last", "Volume": "sum"
+        }).dropna()
+        if len(wdf) < 12:
+            return False
+        close = wdf["Close"]
+        ma10  = close.rolling(10).mean()
+        c     = float(close.iloc[-1])
+        m10   = float(ma10.iloc[-1])
+        if np.isnan(m10):
+            return False
+        ret13w = (float(df["Close"].iloc[-1]) - float(df["Close"].iloc[-65])) \
+                 / float(df["Close"].iloc[-65]) * 100 if len(df) >= 65 else 0
+        high52 = float(wdf["High"].iloc[-53:].max()) if len(wdf) >= 53 else float(wdf["High"].max())
+        drawdown = (c - high52) / high52 * 100
+        return c > m10 and ret13w > 0 and drawdown >= -40
+    except:
+        return False
+
+
 def swing_score_and_detail(df):
-    """스윙 점수 + 세부 지표"""
+    """스윙 점수 + 세부 지표 (v13.2)"""
     if len(df) < 65:
         return 0, False, {}
 
@@ -167,6 +199,12 @@ def swing_score_and_detail(df):
         score += 10
         detail["5일선"] = "회복"
 
+    # 주봉 보너스 (5점)
+    w_ok = stock_weekly_ok(df)
+    if w_ok:
+        score += 5
+    detail["주봉"] = "OK" if w_ok else "-"
+
     # 종가 위치 (close_location)
     h_now    = float(window["High"].iloc[-1])
     l_now    = float(window["Low"].iloc[-1])
@@ -177,15 +215,20 @@ def swing_score_and_detail(df):
     # 거래량 터진 음봉 제외
     is_bearish_vol = (today["Close"] < today["Open"]) and (vol_ratio >= 2.0)
 
+    # 20일 평균 거래대금
+    avg_value = (volume.iloc[-21:-1] * close.iloc[-21:-1]).mean()
+
     must_pass = (
         today["Close"] > ma20_now and
         ma20_now > ma60_now and
         -8 <= pullback <= -0.5 and
         vol_ratio >= 1.0 and
-        vol_ratio <= 2.5 and        # 거래량 상한 (폭발적 거래량 제외)
+        vol_ratio <= 2.5 and
         vol_decrease and
         not is_bearish_vol and
-        0.40 <= cl <= 0.85          # 종가 위치 필터
+        0.40 <= cl <= 0.85 and
+        w_ok and                            # 주봉 필터
+        avg_value >= MIN_TRADING_VALUE      # 거래대금 30억
     )
 
     return score, must_pass, detail
@@ -194,7 +237,7 @@ def swing_score_and_detail(df):
 def get_candidates(kospi_ok, kosdaq_ok):
     """매수 후보 종목 스캔 - 종목별로 해당 시장 필터 적용"""
     print("종목 스캔 중...")
-    start = (datetime.today() - timedelta(days=150)).strftime("%Y-%m-%d")
+    start = (datetime.today() - timedelta(days=730)).strftime("%Y-%m-%d")  # 주봉 MA10 계산용 2년
     end   = datetime.today().strftime("%Y-%m-%d")
 
     kospi_list  = fdr.StockListing("KOSPI")
@@ -402,7 +445,7 @@ def build_email(candidates, sp_ret, nq_ret, sox_ret, us_date,
     {claude_section}
 
     <p style="color:#555;font-size:12px;margin-top:20px;">
-      전략: 추세+눌림목+거래량 회복 (v13) | 승률 71.4% (백테스트) | 평균수익 15.66%<br>
+      전략: 추세+눌림목+거래량 회복 (v13.2) | 승률 71.6% (백테스트) | 평균수익 16.26%<br>
       목표가/손절가는 Claude AI 분석 기반 (AI 표시)<br>
       투자는 본인 판단 하에 진행하세요.
     </p>
