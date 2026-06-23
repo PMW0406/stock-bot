@@ -225,7 +225,7 @@ def run_full_scan():
 st.title("📈 주식봇 v13.2")
 st.caption("추세+눌림목+거래량+주봉 전략 | 백테스트 승률 71.6% | 평균수익 +16.26%")
 
-tab1, tab2 = st.tabs(["🏆 추천주", "🔍 종목 분석"])
+tab1, tab2, tab3 = st.tabs(["🏆 추천주", "📅 히스토리", "🔍 종목 분석"])
 
 # ── 탭1: 추천주 ───────────────────────────
 with tab1:
@@ -291,8 +291,63 @@ with tab1:
             st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
 
-# ── 탭2: 종목 분석 ────────────────────────
+# ── 탭2: 히스토리 ────────────────────────
 with tab2:
+    st.subheader("추천주 히스토리")
+
+    hist_path = os.path.join(os.path.dirname(__file__), "history.json")
+    if not os.path.exists(hist_path):
+        st.info("아직 히스토리가 없어요. 매일 아침 7:10 자동으로 쌓여요.")
+    else:
+        with open(hist_path, encoding="utf-8") as f:
+            history = json.load(f)
+
+        if not history:
+            st.info("추천 기록이 없어요.")
+        else:
+            history_sorted = sorted(history, key=lambda x: x["date"], reverse=True)
+
+            for entry in history_sorted:
+                date_str = entry["date"]
+                cands    = entry.get("candidates", [])
+                if not cands:
+                    continue
+
+                with st.expander(f"📅 {date_str}  —  {len(cands)}개 추천", expanded=(date_str == history_sorted[0]["date"])):
+                    rows = []
+                    for c in cands:
+                        ticker = c["종목코드"]
+                        추천가 = c["추천가"]
+                        목표가 = c["목표가"]
+                        손절가 = c["손절가"]
+
+                        # 현재가 조회
+                        try:
+                            df_now = fdr.DataReader(ticker,
+                                (datetime.today() - timedelta(days=5)).strftime("%Y-%m-%d"),
+                                datetime.today().strftime("%Y-%m-%d"))
+                            현재가 = float(df_now["Close"].iloc[-1]) if not df_now.empty else None
+                        except:
+                            현재가 = None
+
+                        수익률 = f"{(현재가 - 추천가) / 추천가 * 100:+.1f}%" if 현재가 else "-"
+                        rows.append({
+                            "종목명":  c["종목명"],
+                            "추천일":  date_str,
+                            "추천가":  f"{추천가:,.0f}원",
+                            "현재가":  f"{현재가:,.0f}원" if 현재가 else "-",
+                            "수익률":  수익률,
+                            "목표가":  f"{목표가:,.0f}원",
+                            "손절가":  f"{손절가:,.0f}원",
+                            "점수":    f"{c['점수']}점",
+                        })
+
+                    df_hist = pd.DataFrame(rows)
+                    st.dataframe(df_hist, use_container_width=True, hide_index=True)
+
+
+# ── 탭3: 종목 분석 ────────────────────────
+with tab3:
     st.subheader("종목 v13.2 조건 체크")
 
     stock_list = load_stock_list()

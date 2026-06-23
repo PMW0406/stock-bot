@@ -532,6 +532,34 @@ def main():
     with open("candidates.json", "w", encoding="utf-8") as f:
         json.dump(save_data, f, ensure_ascii=False, indent=2)
 
+    # history.json 누적 저장
+    history_path = "history.json"
+    if os.path.exists(history_path):
+        with open(history_path, encoding="utf-8") as f:
+            history = json.load(f)
+    else:
+        history = []
+    today_str = datetime.today().strftime("%Y-%m-%d")
+    # 같은 날짜 중복 방지
+    history = [h for h in history if h.get("date") != today_str]
+    if candidates:
+        history.append({
+            "date": today_str,
+            "candidates": [
+                {
+                    "종목코드": r["종목코드"],
+                    "종목명":   r["종목명"],
+                    "점수":     r["점수"],
+                    "추천가":   r["현재가"],
+                    "목표가":   r["목표가"],
+                    "손절가":   r["손절가"],
+                }
+                for r in candidates
+            ]
+        })
+    with open(history_path, "w", encoding="utf-8") as f:
+        json.dump(history, f, ensure_ascii=False, indent=2)
+
     # 6. 이메일 발송
     body    = build_email(candidates, sp_ret, nq_ret, sox_ret, us_date,
                           market_status, claude_analysis, claude_prices)

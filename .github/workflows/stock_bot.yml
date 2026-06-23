@@ -33,6 +33,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add candidates.json
-          git diff --cached --quiet || git commit -m "Daily update: candidates.json $(date +'%Y-%m-%d')"
+          git add candidates.json history.json
+          git diff --cached --quiet || git commit -m "Daily update: candidates + history $(date +'%Y-%m-%d')"
           git push
