@@ -39,12 +39,31 @@ def stock_weekly_ok(df):
         return False
 
 
+def normalize_df(df):
+    """컬럼명 대문자 통일"""
+    rename = {}
+    for c in df.columns:
+        cl = c.lower()
+        if cl == "open":   rename[c] = "Open"
+        elif cl == "high":   rename[c] = "High"
+        elif cl == "low":    rename[c] = "Low"
+        elif cl == "close":  rename[c] = "Close"
+        elif cl == "volume": rename[c] = "Volume"
+        elif cl in ("adj close", "adj_close"): rename[c] = "Close"
+    return df.rename(columns=rename)
+
+
 def analyze_stock(ticker, name=""):
     """단일 종목 v13.2 분석"""
     start = (datetime.today() - timedelta(days=730)).strftime("%Y-%m-%d")
     end   = datetime.today().strftime("%Y-%m-%d")
     df = fdr.DataReader(ticker, start, end)
-    if df.empty or len(df) < 65:
+    if df is None or df.empty:
+        return None
+    df = normalize_df(df)
+    if "Close" not in df.columns or "Volume" not in df.columns:
+        return None
+    if len(df) < 65:
         return None
     df.index = pd.to_datetime(df.index)
 
@@ -280,16 +299,24 @@ with tab2:
         # 코드/이름 검색
         with st.spinner("데이터 수집 중..."):
             try:
-                all_s = pd.concat([fdr.StockListing("KOSPI"), fdr.StockListing("KOSDAQ")], ignore_index=True)
+                kospi  = fdr.StockListing("KOSPI")
+                kosdaq = fdr.StockListing("KOSDAQ")
+                all_s  = pd.concat([kospi, kosdaq], ignore_index=True)
+
+                # 컬럼명 통일 (Symbol → Code)
+                if "Symbol" in all_s.columns and "Code" not in all_s.columns:
+                    all_s = all_s.rename(columns={"Symbol": "Code"})
+
+                # 코드 검색 vs 이름 검색
                 if query.isdigit() or (len(query) == 6 and query.isalnum()):
                     row = all_s[all_s["Code"] == query]
                 else:
                     row = all_s[all_s["Name"].str.contains(query, na=False)]
 
                 if row.empty:
-                    st.error("종목을 찾을 수 없어요.")
+                    st.error(f"'{query}' 종목을 찾을 수 없어요. 정확한 종목명 또는 6자리 코드를 입력해주세요.")
                 else:
-                    ticker = row.iloc[0]["Code"]
+                    ticker = str(row.iloc[0]["Code"]).zfill(6)
                     name   = row.iloc[0]["Name"]
                     result = analyze_stock(ticker, name)
 
@@ -333,7 +360,9 @@ with tab2:
                                 st.markdown(f"  - {f}")
 
             except Exception as e:
+                import traceback
                 st.error(f"오류: {e}")
+                st.code(traceback.format_exc())
 
     st.divider()
     with st.expander("📖 v13.2 전략 조건 보기"):
