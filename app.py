@@ -288,7 +288,7 @@ with tab2:
 
     col_a, col_b = st.columns([2, 1])
     with col_a:
-        query = st.text_input("종목명 또는 종목코드 입력", placeholder="예: 삼성전자 또는 005930")
+        query = st.text_input("6자리 종목코드 입력", placeholder="예: 005930 (삼성전자), 000660 (SK하이닉스)")
     with col_b:
         st.write("")
         st.write("")
@@ -299,30 +299,13 @@ with tab2:
         # 코드/이름 검색
         with st.spinner("데이터 수집 중..."):
             try:
-                kospi  = fdr.StockListing("KOSPI")
-                kosdaq = fdr.StockListing("KOSDAQ")
-                all_s  = pd.concat([kospi, kosdaq], ignore_index=True)
+                # KRX 서버가 해외 IP 차단 → 6자리 코드로만 조회
+                ticker = query.strip().zfill(6) if query.strip().isdigit() else query.strip()
+                result = analyze_stock(ticker, query.strip())
 
-                # 컬럼명 통일 (Symbol → Code)
-                if "Symbol" in all_s.columns and "Code" not in all_s.columns:
-                    all_s = all_s.rename(columns={"Symbol": "Code"})
-
-                # 코드 검색 vs 이름 검색
-                if query.isdigit() or (len(query) == 6 and query.isalnum()):
-                    row = all_s[all_s["Code"] == query]
+                if result is None:
+                    st.error("데이터를 불러올 수 없어요. 6자리 종목코드로 입력해주세요. (예: 005930)")
                 else:
-                    row = all_s[all_s["Name"].str.contains(query, na=False)]
-
-                if row.empty:
-                    st.error(f"'{query}' 종목을 찾을 수 없어요. 정확한 종목명 또는 6자리 코드를 입력해주세요.")
-                else:
-                    ticker = str(row.iloc[0]["Code"]).zfill(6)
-                    name   = row.iloc[0]["Name"]
-                    result = analyze_stock(ticker, name)
-
-                    if result is None:
-                        st.error("데이터 부족 (상장 기간이 짧은 종목일 수 있어요)")
-                    else:
                         # 헤더
                         verdict_color = "🟢" if result["must_pass"] else "🔴"
                         verdict_text  = "매수 후보 ✅" if result["must_pass"] else "조건 미충족 ❌"
