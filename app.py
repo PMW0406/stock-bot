@@ -291,9 +291,54 @@ with tab1:
             st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
 
+# ── 수익률 판정 함수 ──────────────────────
+def evaluate_trade(ticker, rec_date_str, 추천가, 목표가, 손절가):
+    """
+    추천일 다음날부터 10거래일간 체크
+    → 목표가 먼저 터치: 목표달성
+    → 손절가 먼저 터치: 손절
+    → 10일 경과: 종료(당시 종가)
+    → 아직 10일 미경과: 보유중(현재가)
+    """
+    try:
+        start = (pd.Timestamp(rec_date_str) + timedelta(days=1)).strftime("%Y-%m-%d")
+        end   = datetime.today().strftime("%Y-%m-%d")
+        df = fdr.DataReader(ticker, start, end)
+        if df is None or df.empty:
+            return None, None, "데이터없음"
+        df = normalize_df(df)
+        df.index = pd.to_datetime(df.index)
+        trading_days = df.index.tolist()
+
+        for i, dt in enumerate(trading_days[:10]):
+            row = df.loc[dt]
+            high = float(row["High"])
+            low  = float(row["Low"])
+            # 당일 고가가 목표가 터치
+            if high >= 목표가:
+                pct = (목표가 - 추천가) / 추천가 * 100
+                return 목표가, pct, "🎯 목표달성"
+            # 당일 저가가 손절가 터치
+            if low <= 손절가:
+                pct = (손절가 - 추천가) / 추천가 * 100
+                return 손절가, pct, "🛑 손절"
+
+        # 10일 경과 여부
+        if len(trading_days) >= 10:
+            final_price = float(df.iloc[9]["Close"])
+            pct = (final_price - 추천가) / 추천가 * 100
+            return final_price, pct, "📋 종료"
+        else:
+            current = float(df.iloc[-1]["Close"])
+            pct = (current - 추천가) / 추천가 * 100
+            return current, pct, "🔵 보유중"
+    except:
+        return None, None, "-"
+
+
 # ── 탭2: 히스토리 ────────────────────────
 with tab2:
-    st.subheader("추천주 히스토리")
+    st.subheader("추천주 히스토리 & 수익률")
 
     hist_path = os.path.join(os.path.dirname(__file__), "history.json")
     if not os.path.exists(hist_path):
@@ -307,43 +352,61 @@ with tab2:
         else:
             history_sorted = sorted(history, key=lambda x: x["date"], reverse=True)
 
+            # 전체 요약 통계
+            all_rows = []
+            for entry in history_sorted:
+                for c in entry.get("candidates", []):
+                    all_rows.append((entry["date"], c))
+
+            if all_rows:
+                with st.spinner("수익률 계산 중..."):
+                    summary = []
+                    for date_str, c in all_rows:
+                        price, pct, status = evaluate_trade(
+                            c["종목코드"], date_str, c["추천가"], c["목표가"], c["손절가"]
+                        )
+                        summary.append((date_str, c, price, pct, status))
+
+                completed = [(d,c,p,pct,s) for d,c,p,pct,s in summary if s in ("🎯 목표달성","🛑 손절","📋 종료")]
+                if completed:
+                    wins  = [x for x in completed if x[4] == "🎯 목표달성"]
+                    total = len(completed)
+                    win_rate = len(wins) / total * 100
+                    avg_pct  = np.mean([x[3] for x in completed if x[3] is not None])
+                    c1, c2, c3, c4 = st.columns(4)
+                    c1.metric("총 추천", f"{len(summary)}건")
+                    c2.metric("완료", f"{total}건")
+                    c3.metric("실전 승률", f"{win_rate:.0f}%")
+                    c4.metric("평균 수익률", f"{avg_pct:+.1f}%")
+                    st.divider()
+
+            # 날짜별 상세
+            summary_by_date = {}
+            for date_str, c, price, pct, status in summary:
+                summary_by_date.setdefault(date_str, []).append((c, price, pct, status))
+
             for entry in history_sorted:
                 date_str = entry["date"]
                 cands    = entry.get("candidates", [])
-                if not cands:
-                    continue
+                if not cands: continue
 
-                with st.expander(f"📅 {date_str}  —  {len(cands)}개 추천", expanded=(date_str == history_sorted[0]["date"])):
-                    rows = []
-                    for c in cands:
-                        ticker = c["종목코드"]
-                        추천가 = c["추천가"]
-                        목표가 = c["목표가"]
-                        손절가 = c["손절가"]
+                rows = []
+                for c, price, pct, status in summary_by_date.get(date_str, []):
+                    추천가 = c["추천가"]
+                    rows.append({
+                        "종목명":  c["종목명"],
+                        "상태":    status,
+                        "추천가":  f"{추천가:,.0f}원",
+                        "현재/종료가": f"{price:,.0f}원" if price else "-",
+                        "수익률":  f"{pct:+.1f}%" if pct is not None else "-",
+                        "목표가":  f"{c['목표가']:,.0f}원",
+                        "손절가":  f"{c['손절가']:,.0f}원",
+                        "점수":    f"{c['점수']}점",
+                    })
 
-                        # 현재가 조회
-                        try:
-                            df_now = fdr.DataReader(ticker,
-                                (datetime.today() - timedelta(days=5)).strftime("%Y-%m-%d"),
-                                datetime.today().strftime("%Y-%m-%d"))
-                            현재가 = float(df_now["Close"].iloc[-1]) if not df_now.empty else None
-                        except:
-                            현재가 = None
-
-                        수익률 = f"{(현재가 - 추천가) / 추천가 * 100:+.1f}%" if 현재가 else "-"
-                        rows.append({
-                            "종목명":  c["종목명"],
-                            "추천일":  date_str,
-                            "추천가":  f"{추천가:,.0f}원",
-                            "현재가":  f"{현재가:,.0f}원" if 현재가 else "-",
-                            "수익률":  수익률,
-                            "목표가":  f"{목표가:,.0f}원",
-                            "손절가":  f"{손절가:,.0f}원",
-                            "점수":    f"{c['점수']}점",
-                        })
-
-                    df_hist = pd.DataFrame(rows)
-                    st.dataframe(df_hist, use_container_width=True, hide_index=True)
+                label = f"📅 {date_str}  —  {len(cands)}개 추천"
+                with st.expander(label, expanded=(date_str == history_sorted[0]["date"])):
+                    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
 
 # ── 탭3: 종목 분석 ────────────────────────
