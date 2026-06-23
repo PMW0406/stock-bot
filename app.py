@@ -14,6 +14,15 @@ warnings.filterwarnings("ignore")
 
 st.set_page_config(page_title="주식봇 v13.2", page_icon="📈", layout="wide")
 
+# 종목 리스트 로드 (자동완성용)
+@st.cache_data
+def load_stock_list():
+    path = os.path.join(os.path.dirname(__file__), "stock_list.json")
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    return []
+
 MARKET_CAP_MIN    = 100_000_000_000
 MARKET_CAP_MAX    = 5_000_000_000_000
 MIN_TRADING_VALUE = 3_000_000_000
@@ -286,61 +295,66 @@ with tab1:
 with tab2:
     st.subheader("종목 v13.2 조건 체크")
 
-    col_a, col_b = st.columns([2, 1])
-    with col_a:
-        query = st.text_input("6자리 종목코드 입력", placeholder="예: 005930 (삼성전자), 000660 (SK하이닉스)")
-    with col_b:
-        st.write("")
-        st.write("")
-        run_btn = st.button("분석", type="primary")
+    stock_list = load_stock_list()
+    stock_options = {f"{s['name']} ({s['code']})": s['code'] for s in stock_list}
 
-    if run_btn and query:
-        query = query.strip()
-        # 코드/이름 검색
+    search_query = st.text_input("종목명 검색", placeholder="예: SK, 삼성, 카카오...")
+
+    selected_label = None
+    if search_query:
+        matches = [label for label in stock_options if search_query.lower() in label.lower()][:20]
+        if matches:
+            selected_label = st.selectbox("종목 선택", matches)
+        else:
+            st.warning("검색 결과 없음")
+
+    run_btn = st.button("분석", type="primary", disabled=(selected_label is None))
+
+    if run_btn and selected_label:
+        ticker = stock_options[selected_label]
+        name   = selected_label.split(" (")[0]
         with st.spinner("데이터 수집 중..."):
             try:
-                # KRX 서버가 해외 IP 차단 → 6자리 코드로만 조회
-                ticker = query.strip().zfill(6) if query.strip().isdigit() else query.strip()
-                result = analyze_stock(ticker, query.strip())
+                result = analyze_stock(ticker, name)
 
                 if result is None:
-                    st.error("데이터를 불러올 수 없어요. 6자리 종목코드로 입력해주세요. (예: 005930)")
+                    st.error("데이터를 불러올 수 없어요. (데이터 부족 또는 상장 기간 짧은 종목)")
                 else:
-                        # 헤더
-                        verdict_color = "🟢" if result["must_pass"] else "🔴"
-                        verdict_text  = "매수 후보 ✅" if result["must_pass"] else "조건 미충족 ❌"
-                        st.markdown(f"### {verdict_color} {result['종목명']} ({ticker})")
-                        c1, c2, c3 = st.columns(3)
-                        c1.metric("현재가", f"{result['현재가']:,.0f}원")
-                        c2.metric("스코어", f"{result['점수']}점")
-                        c3.metric("결론", verdict_text)
+                    # 헤더
+                    verdict_color = "🟢" if result["must_pass"] else "🔴"
+                    verdict_text  = "매수 후보 ✅" if result["must_pass"] else "조건 미충족 ❌"
+                    st.markdown(f"### {verdict_color} {result['종목명']} ({ticker})")
+                    c1, c2, c3 = st.columns(3)
+                    c1.metric("현재가", f"{result['현재가']:,.0f}원")
+                    c2.metric("스코어", f"{result['점수']}점")
+                    c3.metric("결론", verdict_text)
 
-                        # 조건 체크표
-                        st.divider()
-                        st.markdown("**📋 조건 체크**")
-                        for cond, ok in result["조건"].items():
-                            icon = "✅" if ok else "❌"
-                            st.markdown(f"{icon} {cond}")
+                    # 조건 체크표
+                    st.divider()
+                    st.markdown("**📋 조건 체크**")
+                    for cond, ok in result["조건"].items():
+                        icon = "✅" if ok else "❌"
+                        st.markdown(f"{icon} {cond}")
 
-                        # 세부 수치
-                        st.divider()
-                        st.markdown("**📊 세부 수치**")
-                        detail_df = pd.DataFrame([result["세부"]]).T.reset_index()
-                        detail_df.columns = ["항목", "값"]
-                        st.dataframe(detail_df, use_container_width=True, hide_index=True)
+                    # 세부 수치
+                    st.divider()
+                    st.markdown("**📊 세부 수치**")
+                    detail_df = pd.DataFrame([result["세부"]]).T.reset_index()
+                    detail_df.columns = ["항목", "값"]
+                    st.dataframe(detail_df, use_container_width=True, hide_index=True)
 
-                        # 스코어 설명
-                        st.divider()
-                        score = result["점수"]
-                        if result["must_pass"] and score >= 90:
-                            st.success(f"🔥 {score}점 — 강한 신호! 백테스트 기준 이 구간 승률 73.7%")
-                        elif result["must_pass"] and score >= 70:
-                            st.success(f"✅ {score}점 — 매수 후보. 승률 70~72% 구간")
-                        else:
-                            fails = [k for k, v in result["조건"].items() if not v]
-                            st.error(f"❌ 조건 미충족 ({len(fails)}개 탈락)")
-                            for f in fails:
-                                st.markdown(f"  - {f}")
+                    # 스코어 설명
+                    st.divider()
+                    score = result["점수"]
+                    if result["must_pass"] and score >= 90:
+                        st.success(f"🔥 {score}점 — 강한 신호! 백테스트 기준 이 구간 승률 73.7%")
+                    elif result["must_pass"] and score >= 70:
+                        st.success(f"✅ {score}점 — 매수 후보. 승률 70~72% 구간")
+                    else:
+                        fails = [k for k, v in result["조건"].items() if not v]
+                        st.error(f"❌ 조건 미충족 ({len(fails)}개 탈락)")
+                        for f in fails:
+                            st.markdown(f"  - {f}")
 
             except Exception as e:
                 import traceback
