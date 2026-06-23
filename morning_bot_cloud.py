@@ -469,7 +469,7 @@ def main():
     # 5. 이메일 발송
     body    = build_email(candidates, sp_ret, nq_ret, sox_ret, us_date,
                           market_status, claude_analysis, claude_prices)
-    subject = f"[주식봇] {datetime.today().strftime('%Y-%m-%d')} 스윙 후보 {len(candidates)}종목"
+    subject = f"Daily News {datetime.today().strftime('%Y-%m-%d')} 스윙 후보 {len(candidates)}종목"
     send_email(subject, body)
 
     print(f"\n이메일 발송 완료 → {RECEIVE_EMAIL}")
