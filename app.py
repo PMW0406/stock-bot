@@ -294,11 +294,8 @@ with tab1:
 # ── 수익률 판정 함수 ──────────────────────
 def evaluate_trade(ticker, rec_date_str, 추천가, 목표가, 손절가):
     """
-    추천일 다음날부터 10거래일간 체크
-    → 목표가 먼저 터치: 목표달성
-    → 손절가 먼저 터치: 손절
-    → 10일 경과: 종료(당시 종가)
-    → 아직 10일 미경과: 보유중(현재가)
+    추천일 다음날부터 10거래일간 체크 → 상태 판정
+    현재가/수익률은 항상 오늘 기준
     """
     try:
         start = (pd.Timestamp(rec_date_str) + timedelta(days=1)).strftime("%Y-%m-%d")
@@ -310,28 +307,25 @@ def evaluate_trade(ticker, rec_date_str, 추천가, 목표가, 손절가):
         df.index = pd.to_datetime(df.index)
         trading_days = df.index.tolist()
 
-        for i, dt in enumerate(trading_days[:10]):
-            row = df.loc[dt]
+        # 상태 판정 (목표/손절 터치 여부)
+        status = None
+        for dt in trading_days[:10]:
+            row  = df.loc[dt]
             high = float(row["High"])
             low  = float(row["Low"])
-            # 당일 고가가 목표가 터치
             if high >= 목표가:
-                pct = (목표가 - 추천가) / 추천가 * 100
-                return 목표가, pct, "🎯 목표달성"
-            # 당일 저가가 손절가 터치
+                status = "🎯 목표달성"
+                break
             if low <= 손절가:
-                pct = (손절가 - 추천가) / 추천가 * 100
-                return 손절가, pct, "🛑 손절"
+                status = "🛑 손절"
+                break
+        if status is None:
+            status = "📋 종료" if len(trading_days) >= 10 else "🔵 보유중"
 
-        # 10일 경과 여부
-        if len(trading_days) >= 10:
-            final_price = float(df.iloc[9]["Close"])
-            pct = (final_price - 추천가) / 추천가 * 100
-            return final_price, pct, "📋 종료"
-        else:
-            current = float(df.iloc[-1]["Close"])
-            pct = (current - 추천가) / 추천가 * 100
-            return current, pct, "🔵 보유중"
+        # 현재가 & 수익률은 항상 오늘 기준
+        current = float(df.iloc[-1]["Close"])
+        pct     = (current - 추천가) / 추천가 * 100
+        return current, pct, status
     except:
         return None, None, "-"
 
@@ -397,7 +391,7 @@ with tab2:
                         "종목명":  c["종목명"],
                         "상태":    status,
                         "추천가":  f"{추천가:,.0f}원",
-                        "현재/종료가": f"{price:,.0f}원" if price else "-",
+                        "현재가":      f"{price:,.0f}원" if price else "-",
                         "수익률":  f"{pct:+.1f}%" if pct is not None else "-",
                         "목표가":  f"{c['목표가']:,.0f}원",
                         "손절가":  f"{c['손절가']:,.0f}원",
