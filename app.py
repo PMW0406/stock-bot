@@ -294,46 +294,67 @@ with tab1:
 # ── 수익률 판정 함수 ──────────────────────
 def evaluate_trade(ticker, rec_date_str, 추천가, 목표가, 손절가):
     """
-    추천일 다음날부터 10거래일간 체크 → 상태 판정
-    현재가/수익률은 항상 오늘 기준
+    시나리오 A: 손절 가정 (손절가 터치 시 손절, 목표 터치 시 익절, 10일 종가)
+    시나리오 B: 10일 보유 (무조건 10거래일 후 종가)
+    현재가는 항상 오늘 기준
+    반환: (현재가, 시나리오A수익률, 시나리오A상태, 시나리오B수익률, 시나리오B상태)
     """
     try:
         start = (pd.Timestamp(rec_date_str) + timedelta(days=1)).strftime("%Y-%m-%d")
         end   = datetime.today().strftime("%Y-%m-%d")
         df = fdr.DataReader(ticker, start, end)
         if df is None or df.empty:
-            return None, None, "데이터없음"
+            return None, None, "-", None, "-"
         df = normalize_df(df)
         df.index = pd.to_datetime(df.index)
-        trading_days = df.index.tolist()
-
-        # 상태 판정 (목표/손절 터치 여부)
-        status = None
-        for dt in trading_days[:10]:
-            row  = df.loc[dt]
-            high = float(row["High"])
-            low  = float(row["Low"])
-            if high >= 목표가:
-                status = "🎯 목표달성"
-                break
-            if low <= 손절가:
-                status = "🛑 손절"
-                break
-        if status is None:
-            status = "📋 종료" if len(trading_days) >= 10 else "🔵 보유중"
-
-        # 현재가 & 수익률은 항상 오늘 기준
+        days = df.index.tolist()
         current = float(df.iloc[-1]["Close"])
-        pct     = (current - 추천가) / 추천가 * 100
-        return current, pct, status
+
+        # ── 시나리오 A: 손절/익절 가정 ──
+        a_price, a_status = None, None
+        for dt in days[:10]:
+            row = df.loc[dt]
+            if float(row["High"]) >= 목표가:
+                a_price, a_status = 목표가, "🎯 목표달성"
+                break
+            if float(row["Low"]) <= 손절가:
+                a_price, a_status = 손절가, "🛑 손절"
+                break
+        if a_status is None:
+            if len(days) >= 10:
+                a_price  = float(df.iloc[9]["Close"])
+                a_status = "📋 10일종료"
+            else:
+                a_price  = current
+                a_status = "🔵 보유중"
+        a_pct = (a_price - 추천가) / 추천가 * 100
+
+        # ── 시나리오 B: 10일 보유 ──
+        if len(days) >= 10:
+            b_price  = float(df.iloc[9]["Close"])
+            b_status = "📋 10일종료"
+        else:
+            b_price  = current
+            b_status = "🔵 보유중"
+        b_pct = (b_price - 추천가) / 추천가 * 100
+
+        return current, a_pct, a_status, b_pct, b_status
     except:
-        return None, None, "-"
+        return None, None, "-", None, "-"
+
+
+def pct_color(pct):
+    if pct is None: return "#888"
+    return "#00c853" if pct >= 0 else "#ff1744"
+
+
+def pct_str(pct):
+    if pct is None: return "-"
+    return f"{pct:+.1f}%"
 
 
 # ── 탭2: 히스토리 ────────────────────────
 with tab2:
-    st.subheader("추천주 히스토리 & 수익률")
-
     hist_path = os.path.join(os.path.dirname(__file__), "history.json")
     if not os.path.exists(hist_path):
         st.info("아직 히스토리가 없어요. 매일 아침 7:10 자동으로 쌓여요.")
@@ -346,61 +367,124 @@ with tab2:
         else:
             history_sorted = sorted(history, key=lambda x: x["date"], reverse=True)
 
-            # 전체 요약 통계
-            all_rows = []
-            for entry in history_sorted:
-                for c in entry.get("candidates", []):
-                    all_rows.append((entry["date"], c))
+            # 전체 데이터 수집
+            all_items = [(entry["date"], c) for entry in history_sorted for c in entry.get("candidates", [])]
 
-            if all_rows:
-                with st.spinner("수익률 계산 중..."):
-                    summary = []
-                    for date_str, c in all_rows:
-                        price, pct, status = evaluate_trade(
-                            c["종목코드"], date_str, c["추천가"], c["목표가"], c["손절가"]
-                        )
-                        summary.append((date_str, c, price, pct, status))
+            with st.spinner("수익률 계산 중..."):
+                results = {}
+                for date_str, c in all_items:
+                    key = (date_str, c["종목코드"])
+                    results[key] = evaluate_trade(
+                        c["종목코드"], date_str, c["추천가"], c["목표가"], c["손절가"]
+                    )
 
-                completed = [(d,c,p,pct,s) for d,c,p,pct,s in summary if s in ("🎯 목표달성","🛑 손절","📋 종료")]
-                if completed:
-                    wins  = [x for x in completed if x[4] == "🎯 목표달성"]
-                    total = len(completed)
-                    win_rate = len(wins) / total * 100
-                    avg_pct  = np.mean([x[3] for x in completed if x[3] is not None])
-                    c1, c2, c3, c4 = st.columns(4)
-                    c1.metric("총 추천", f"{len(summary)}건")
-                    c2.metric("완료", f"{total}건")
-                    c3.metric("실전 승률", f"{win_rate:.0f}%")
-                    c4.metric("평균 수익률", f"{avg_pct:+.1f}%")
-                    st.divider()
+            # ── 상단 요약 카드 ──
+            completed_a = [(k, v) for k, v in results.items() if v[2] in ("🎯 목표달성", "🛑 손절", "📋 10일종료")]
+            if completed_a:
+                wins_a = [v for k, v in completed_a if v[2] == "🎯 목표달성"]
+                wr_a   = len(wins_a) / len(completed_a) * 100
+                avg_a  = np.mean([v[1] for k, v in completed_a if v[1] is not None])
+                avg_b  = np.mean([v[3] for k, v in results.items() if v[3] is not None and v[4] == "📋 10일종료"])
 
-            # 날짜별 상세
-            summary_by_date = {}
-            for date_str, c, price, pct, status in summary:
-                summary_by_date.setdefault(date_str, []).append((c, price, pct, status))
+                st.markdown("""
+<style>
+.summary-card {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    border: 1px solid #0f3460;
+    border-radius: 16px;
+    padding: 24px 32px;
+    margin-bottom: 24px;
+}
+.summary-title { color: #a0aec0; font-size: 13px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
+.summary-value { font-size: 28px; font-weight: 700; }
+.summary-sub   { color: #718096; font-size: 12px; margin-top: 2px; }
+.stock-card {
+    background: #1a1a2e;
+    border: 1px solid #2d3748;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 10px;
+}
+.stock-name { font-size: 16px; font-weight: 700; color: #e2e8f0; }
+.stock-code { font-size: 12px; color: #718096; margin-left: 8px; }
+.tag { display: inline-block; border-radius: 6px; padding: 2px 10px; font-size: 12px; font-weight: 600; }
+</style>
+""", unsafe_allow_html=True)
 
+                cols = st.columns(4)
+                metrics = [
+                    ("총 추천", f"{len(all_items)}건", "누적 추천 종목 수"),
+                    ("완료", f"{len(completed_a)}건", "10일 경과 or 손절/익절"),
+                    ("손절가정 승률", f"{wr_a:.0f}%", f"목표달성 {len(wins_a)}건 / 전체 {len(completed_a)}건"),
+                    ("10일보유 평균", f"{avg_b:+.1f}%", "10거래일 보유 시 평균 수익률"),
+                ]
+                for col, (title, val, sub) in zip(cols, metrics):
+                    color = "#00c853" if "%" in val and float(val.replace("%","").replace("+","")) >= 0 else "#ff1744" if "%" in val else "#63b3ed"
+                    col.markdown(f"""
+<div style="background:#1a1a2e;border:1px solid #2d3748;border-radius:12px;padding:16px 20px;text-align:center;">
+  <div style="color:#a0aec0;font-size:12px;font-weight:600;letter-spacing:1px;margin-bottom:6px;">{title}</div>
+  <div style="font-size:26px;font-weight:700;color:{color};">{val}</div>
+  <div style="color:#4a5568;font-size:11px;margin-top:4px;">{sub}</div>
+</div>""", unsafe_allow_html=True)
+
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            # ── 날짜별 카드 ──
             for entry in history_sorted:
                 date_str = entry["date"]
                 cands    = entry.get("candidates", [])
                 if not cands: continue
 
-                rows = []
-                for c, price, pct, status in summary_by_date.get(date_str, []):
-                    추천가 = c["추천가"]
-                    rows.append({
-                        "종목명":  c["종목명"],
-                        "상태":    status,
-                        "추천가":  f"{추천가:,.0f}원",
-                        "현재가":      f"{price:,.0f}원" if price else "-",
-                        "수익률":  f"{pct:+.1f}%" if pct is not None else "-",
-                        "목표가":  f"{c['목표가']:,.0f}원",
-                        "손절가":  f"{c['손절가']:,.0f}원",
-                        "점수":    f"{c['점수']}점",
-                    })
+                st.markdown(f"""
+<div style="display:flex;align-items:center;margin:20px 0 10px 0;">
+  <div style="background:#0f3460;border-radius:8px;padding:4px 14px;font-size:14px;font-weight:700;color:#63b3ed;">📅 {date_str}</div>
+  <div style="color:#4a5568;font-size:13px;margin-left:10px;">{len(cands)}개 추천</div>
+</div>""", unsafe_allow_html=True)
 
-                label = f"📅 {date_str}  —  {len(cands)}개 추천"
-                with st.expander(label, expanded=(date_str == history_sorted[0]["date"])):
-                    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+                for c in cands:
+                    key = (date_str, c["종목코드"])
+                    cur, a_pct, a_status, b_pct, b_status = results.get(key, (None,None,"-",None,"-"))
+                    추천가 = c["추천가"]
+                    cur_pct = (cur - 추천가) / 추천가 * 100 if cur else None
+
+                    a_col = pct_color(a_pct)
+                    b_col = pct_color(b_pct)
+                    c_col = pct_color(cur_pct)
+
+                    st.markdown(f"""
+<div class="stock-card">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+    <div>
+      <span class="stock-name">{c['종목명']}</span>
+      <span class="stock-code">{c['종목코드']}</span>
+      <span style="margin-left:8px;background:#2d3748;border-radius:4px;padding:2px 8px;font-size:11px;color:#a0aec0;">{c['점수']}점</span>
+    </div>
+    <div style="text-align:right;">
+      <div style="color:#718096;font-size:11px;">현재가</div>
+      <div style="font-size:18px;font-weight:700;color:{c_col};">{f"{cur:,.0f}원" if cur else "-"} <span style="font-size:13px;">({pct_str(cur_pct)})</span></div>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:8px;">
+    <div style="background:#0d1117;border-radius:8px;padding:10px 14px;">
+      <div style="color:#718096;font-size:11px;margin-bottom:4px;">추천가 / 목표 / 손절</div>
+      <div style="color:#e2e8f0;font-size:13px;">{추천가:,.0f}원</div>
+      <div style="color:#00c853;font-size:12px;">▲ {c['목표가']:,.0f}원 (+10%)</div>
+      <div style="color:#ff1744;font-size:12px;">▼ {c['손절가']:,.0f}원 (-4%)</div>
+    </div>
+    <div style="background:#0d1117;border-radius:8px;padding:10px 14px;">
+      <div style="color:#718096;font-size:11px;margin-bottom:4px;">🛑 손절 가정</div>
+      <div style="font-size:20px;font-weight:700;color:{a_col};">{pct_str(a_pct)}</div>
+      <div style="color:#4a5568;font-size:12px;margin-top:2px;">{a_status}</div>
+    </div>
+    <div style="background:#0d1117;border-radius:8px;padding:10px 14px;">
+      <div style="color:#718096;font-size:11px;margin-bottom:4px;">📅 10일 보유</div>
+      <div style="font-size:20px;font-weight:700;color:{b_col};">{pct_str(b_pct)}</div>
+      <div style="color:#4a5568;font-size:12px;margin-top:2px;">{b_status}</div>
+    </div>
+  </div>
+</div>""", unsafe_allow_html=True)
+
+            st.markdown("<br>", unsafe_allow_html=True)
 
 
 # ── 탭3: 종목 분석 ────────────────────────
