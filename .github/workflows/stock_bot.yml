@@ -28,3 +28,11 @@ jobs:
           RECEIVE_EMAIL: ${{ secrets.RECEIVE_EMAIL }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: python morning_bot_cloud.py
+
+      - name: candidates.json 커밋 & 푸시
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add candidates.json
+          git diff --cached --quiet || git commit -m "Daily update: candidates.json $(date +'%Y-%m-%d')"
+          git push
