@@ -509,7 +509,30 @@ def main():
     # 4. Claude 분석
     claude_analysis, claude_prices = analyze_with_claude(candidates, sp_ret, nq_ret, sox_ret)
 
-    # 5. 이메일 발송
+    # 5. 결과 JSON 저장 (Streamlit 앱용)
+    import json
+    save_data = {
+        "updated": datetime.today().strftime("%Y-%m-%d %H:%M"),
+        "market":  market_status,
+        "kospi_ok": kospi_ok,
+        "kosdaq_ok": kosdaq_ok,
+        "candidates": [
+            {
+                "종목코드": r["종목코드"],
+                "종목명":   r["종목명"],
+                "점수":     r["점수"],
+                "현재가":   r["현재가"],
+                "목표가":   r["목표가"],
+                "손절가":   r["손절가"],
+                "detail":   {k: v for k, v in r["detail"].items() if k != "df"},
+            }
+            for r in candidates
+        ]
+    }
+    with open("candidates.json", "w", encoding="utf-8") as f:
+        json.dump(save_data, f, ensure_ascii=False, indent=2)
+
+    # 6. 이메일 발송
     body    = build_email(candidates, sp_ret, nq_ret, sox_ret, us_date,
                           market_status, claude_analysis, claude_prices)
     subject = f"Daily News {datetime.today().strftime('%Y-%m-%d')} 스윙 후보 {len(candidates)}종목"
