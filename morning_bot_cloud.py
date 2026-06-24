@@ -30,7 +30,7 @@ RECEIVE_EMAIL     = os.environ["RECEIVE_EMAIL"]
 ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
 
 MIN_SCORE           = 70
-TOP_N               = 5
+TOP_N               = 3
 TARGET_GAIN         = 0.05
 STOP_LOSS           = 0.04
 MARKET_CAP_MIN      = 100_000_000_000
