@@ -37,6 +37,10 @@ HOLD_DAYS         = 15                  # 보유 거래일
 STOP_LOSS         = 0.08                # 손절 -8%
 NEAR_HIGH         = -5.0                # 52주 고가 대비 -5% 이내
 GAP_MAX           = 2.0                 # 시가 갭 +2% 이상이면 진입취소
+GAP_MIN           = -3.0                # 시가 갭 -3% 이하(급락 출발)도 진입취소
+BREAKER_WINDOW    = 10                  # 서킷브레이커: 최근 청산 10건 중
+BREAKER_STOPS     = 7                   #   손절이 7건 이상이면
+BREAKER_PAUSE     = 5                   #   5거래일 신규진입 중단
 MARKET_CAP_MIN    = 100_000_000_000
 MARKET_CAP_MAX    = 5_000_000_000_000
 MIN_TRADING_VALUE = 3_000_000_000       # 거래대금 30억
@@ -113,12 +117,12 @@ def update_positions(hist):
                 kept.append(p); continue
             df.index = pd.to_datetime(df.index).strftime("%Y-%m-%d")
 
-            # 1) pending 체결 확정 (진입일 시가 = 체결가, 갭 +2%↑면 취소)
+            # 1) pending 체결 확정 (진입일 시가 = 체결가, 갭 +2%↑ 또는 -3%↓면 취소)
             if p.get("entry_price") is None:
                 if p["entry_date"] in df.index:
                     o = float(df.loc[p["entry_date"], "Open"])
                     gap = (o - p["ref_close"]) / p["ref_close"] * 100 if p.get("ref_close") else 0
-                    if gap >= GAP_MAX:
+                    if gap >= GAP_MAX or gap <= GAP_MIN:
                         cancels.append({**p, "reason": f"갭 {gap:+.1f}% 진입취소"})
                         continue
                     p["entry_price"] = round(o, 2)
@@ -332,9 +336,25 @@ def main():
     sell_alerts, cancels = update_positions(hist)
     print(f"보유 {len(hist['positions'])}개 / 매도알림 {len(sell_alerts)} / 갭취소 {len(cancels)}")
 
-    # 2) 신규 후보 스캔 (국면 ON일 때만)
+    # 2) 서킷브레이커: 최근 청산 10건 중 손절 7건↑ → 5거래일 신규진입 중단
+    brk = hist.setdefault("breaker", {"pause_left": 0, "reset_date": ""})
+    closed_sorted = sorted(hist["closed"], key=lambda c: c.get("exit_date", ""))
+    recent = [c for c in closed_sorted if c.get("exit_date", "") > brk.get("reset_date", "")][-BREAKER_WINDOW:]
+    n_stops = sum(1 for c in recent if "손절" in c.get("reason", ""))
+    if brk["pause_left"] == 0 and len(recent) >= BREAKER_WINDOW and n_stops >= BREAKER_STOPS:
+        brk["pause_left"] = BREAKER_PAUSE
+        brk["reset_date"] = today_str
+        print(f"🚨 서킷브레이커 발동: 최근 {BREAKER_WINDOW}건 중 손절 {n_stops}건 → {BREAKER_PAUSE}일 신규중단")
+    breaker_active = brk["pause_left"] > 0
+    if breaker_active:
+        brk["pause_left"] -= 1
+        regime_msg += f" | 🚨 서킷브레이커: 신규진입 중단 (잔여 {brk['pause_left']+1}일)"
+
+    # 3) 신규 후보 스캔 (국면 ON + 브레이커 미발동일 때만)
     candidates, new_entries = [], []
-    if regime_on:
+    if regime_on and breaker_active:
+        print("서킷브레이커 활성 → 스캔 생략 (보유종목 관리만)")
+    elif regime_on:
         held_codes = {p["code"] for p in hist["positions"]}
         candidates = get_candidates(held_codes)
         empty = SLOTS - len(hist["positions"])
