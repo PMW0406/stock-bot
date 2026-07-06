@@ -62,6 +62,48 @@ def check_regime():
         return None, None, None
 
 
+def run_live_scan(progress):
+    """실시간 v14 스캔 — 당일 거래대금 프리필터로 3~6분"""
+    start = (datetime.today() - timedelta(days=400)).strftime("%Y-%m-%d")
+    kospi  = fdr.StockListing("KOSPI")
+    kosdaq = fdr.StockListing("KOSDAQ")
+    all_s  = pd.concat([kospi, kosdaq], ignore_index=True)
+    filt   = all_s[(all_s["Marcap"] >= MARKET_CAP_MIN) & (all_s["Marcap"] <= MARKET_CAP_MAX)]
+    # 프리필터: 당일 거래대금 10억↑ (20일평균 30억 후보의 안전 하한) → 대상 절반 이하로
+    if "Amount" in filt.columns:
+        filt = filt[filt["Amount"] >= 1_000_000_000]
+    tickers = filt[["Code", "Name"]].values.tolist()
+    total = len(tickers)
+    results = []
+    for i, (tk, nm) in enumerate(tickers):
+        if i % 20 == 0:
+            progress.progress(min(i / total, 1.0), text=f"스캔 중... {i}/{total} (후보 {len(results)}개)")
+        try:
+            df = fdr.DataReader(tk, start)
+            if df.empty or len(df) < 260:
+                continue
+            close = df["Close"]; high = df["High"]; vol = df["Volume"]
+            c   = float(close.iloc[-1])
+            h52 = float(high.rolling(252).max().iloc[-1])
+            if h52 <= 0: continue
+            d52 = (c / h52 - 1) * 100
+            if d52 < NEAR_HIGH: continue
+            avg_value = float((vol * close).rolling(20).mean().iloc[-1])
+            if np.isnan(avg_value) or avg_value < MIN_TRADING_VALUE: continue
+            ma5  = float(close.rolling(5).mean().iloc[-1])
+            ma20 = float(close.rolling(20).mean().iloc[-1])
+            if not (ma5 > ma20): continue
+            results.append({
+                "code": tk, "name": nm, "close": c,
+                "d52": round(d52, 2), "avg_value_억": round(avg_value / 100_000_000, 1),
+            })
+        except:
+            continue
+    progress.progress(1.0, text="완료!")
+    results.sort(key=lambda x: -x["d52"])
+    return results
+
+
 def analyze_stock_v14(ticker, name=""):
     """단일 종목 v14 조건 체크"""
     start = (datetime.today() - timedelta(days=420)).strftime("%Y-%m-%d")
@@ -135,15 +177,45 @@ with tab1:
         st.info("아직 스캔 결과가 없어요. 매일 아침 7:10 자동 업데이트됩니다.")
 
     st.divider()
+    col_a, col_b = st.columns(2)
     # 수동 국면 체크 (가벼움)
-    if st.button("📡 지금 국면 확인 (몇 초)"):
-        on, c, ma = check_regime()
-        if on is None:
-            st.error("코스피 데이터 조회 실패")
-        elif on:
-            st.success(f"🟢 코스피 {c:,.0f} > 120일선 {ma:,.0f} — 매매 가능 국면")
+    with col_a:
+        if st.button("📡 지금 국면 확인 (몇 초)"):
+            on, c, ma = check_regime()
+            if on is None:
+                st.error("코스피 데이터 조회 실패")
+            elif on:
+                st.success(f"🟢 코스피 {c:,.0f} > 120일선 {ma:,.0f} — 매매 가능 국면")
+            else:
+                st.warning(f"🟡 코스피 {c:,.0f} < 120일선 {ma:,.0f} — 현금 대기 국면")
+    # 실시간 전체 스캔
+    with col_b:
+        live = st.button("🔄 지금 실시간 스캔 (약 3~6분)", type="primary")
+    if live:
+        on, kc, kma = check_regime()
+        if on is False:
+            st.warning(f"🟡 코스피 {kc:,.0f} < 120일선 {kma:,.0f} — 약세 국면이라 매수 대상 아님 (참고용으로 스캔은 진행)")
+        prog = st.progress(0, text="종목 목록 수집 중...")
+        results = run_live_scan(prog)
+        prog.empty()
+        st.session_state["live_scan"] = {
+            "when": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "regime_on": bool(on), "results": results,
+        }
+    ls = st.session_state.get("live_scan")
+    if ls:
+        st.markdown(f"**⚡ 실시간 스캔 결과** ({ls['when']} 기준, {'🟢 매매국면' if ls['regime_on'] else '🟡 약세국면·참고용'})")
+        if ls["results"]:
+            rows = [{
+                "종목명": c["name"], "코드": c["code"],
+                "현재가": f"{c['close']:,.0f}원",
+                "신고가 대비": f"{c['d52']:+.1f}%",
+                "거래대금(20일)": f"{c['avg_value_억']:,.0f}억",
+            } for c in ls["results"]]
+            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+            st.caption("신고가 최근접순 정렬 · 매수는 다음날 시가 기준, 갭 +2% 이상이면 보류")
         else:
-            st.warning(f"🟡 코스피 {c:,.0f} < 120일선 {ma:,.0f} — 현금 대기 국면")
+            st.info("현재 조건 통과 종목 없음 (신고가 -5% 이내 + MA5>MA20 종목이 시장에 없음)")
 
 
 # ── 탭2: 포트폴리오 & 히스토리 ───────────
