@@ -178,7 +178,21 @@ with tab1:
                 st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
                 st.caption("🎯 = 봇이 오늘 매수한 종목 (가상 포트폴리오 기준) · 시가 갭 +2% 이상이면 매수 보류")
             else:
-                st.info("조건 통과 후보 없음")
+                st.info("A트랙(신고가) 조건 통과 후보 없음")
+            # B트랙 (초대형 회귀)
+            cands_b = saved.get("candidates_b", [])
+            if cands_b:
+                st.markdown("**🔵 B트랙 — 초대형 과매도 회귀** (조정장 보조 · +3% 목표/10일 · 승률 74%)")
+                newb = set(saved.get("new_entries_b", []))
+                rows_b = [{
+                    "매수": "🔵" if c["code"] in newb else "",
+                    "종목명": c["name"], "코드": c["code"],
+                    "현재가": f"{c['close']:,.0f}원",
+                    "RSI(2)": c["rsi2"],
+                    "200일선 대비": f"{c['ma200_dist']:+.1f}%",
+                    "목표가(+3%)": f"{c['close']*1.03:,.0f}원",
+                } for c in cands_b]
+                st.dataframe(pd.DataFrame(rows_b), use_container_width=True, hide_index=True)
         else:
             st.info("이전 버전(v13) 결과 파일입니다. 내일 아침 봇 실행 후 v14 형식으로 갱신됩니다.")
     else:
@@ -294,9 +308,14 @@ with tab2:
                 ret  = p.get("ret_pct")
                 cur  = p.get("current")
                 held = p.get("days_held", 0) or 0
-                barw = min(int(held / HOLD_DAYS * 100), 100)
-                stop_txt = f"{p['stop_price']:,.0f}원" if p.get("stop_price") else "-"
+                barw = min(int(held / max_d * 100), 100)
+                is_b = p.get("track") == "B"
+                max_d = 10 if is_b else HOLD_DAYS
+                stop_txt = (f"목표 {p['target_price']:,.0f}원" if is_b and p.get("target_price")
+                            else f"{p['stop_price']:,.0f}원" if p.get("stop_price") else "-")
                 ptag = '<span class="tag" style="background:#4a3800;color:#ffc107;margin-left:8px;">체결대기</span>' if pending else ""
+                if is_b:
+                    ptag += '<span class="tag" style="background:#123a5c;color:#7cc7ff;margin-left:8px;">B 회귀</span>'
                 cur_txt = f"{cur:,.0f}원" if cur else "-"
                 ret_txt = f"{ret:+.1f}%" if ret is not None else "-"
                 entry_txt = "대기" if pending else f"{p['entry_price']:,.0f}원"
@@ -310,10 +329,10 @@ with tab2:
                     f'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">'
                     f'<div class="mini-box"><div class="mini-title">진입 ({p["entry_date"][5:]})</div>'
                     f'<div style="color:#e2e8f0;font-size:14px;font-weight:600;">{entry_txt}</div></div>'
-                    f'<div class="mini-box"><div class="mini-title">보유일 {held}/{HOLD_DAYS}</div>'
+                    f'<div class="mini-box"><div class="mini-title">보유일 {held}/{max_d}</div>'
                     f'<div style="background:#2d3748;border-radius:4px;height:8px;margin-top:6px;"><div style="background:#63b3ed;width:{barw}%;height:8px;border-radius:4px;"></div></div></div>'
-                    f'<div class="mini-box"><div class="mini-title">손절가 (-10%)</div>'
-                    f'<div style="color:#ff1744;font-size:14px;font-weight:600;">{stop_txt}</div></div>'
+                    f'<div class="mini-box"><div class="mini-title">{"목표가 (+3%)" if is_b else "손절가 (-10%)"}</div>'
+                    f'<div style="color:{"#00c853" if is_b else "#ff1744"};font-size:14px;font-weight:600;">{stop_txt}</div></div>'
                     f'</div></div>', unsafe_allow_html=True)
         else:
             st.info("보유 종목 없음 (약세장 대기 또는 시작 전)")
@@ -424,7 +443,12 @@ with tab3:
 **청산 (조기 익절 없음 — 승자 태우기)**
 - {HOLD_DAYS}거래일 만기 매도 or **종가 기준 -10% 손절** (장중 꼬리에 안 잘림)
 
-**자금 운용** — 최대 {SLOTS}종목 균등 분산 (종목당 자금의 {100//SLOTS}%)
+**자금 운용** — A트랙 최대 {SLOTS}종목 균등 분산
+
+**🔵 보조 B트랙 (조정장 회귀 · 승률 74% 검증)**
+- 초대형주(시총 5조↑) + 200일선 위 + RSI(2) < 10 과매도 → 익일 시가 매수
+- 청산: **+3% 지정가 익절** or 10거래일 종가 매도 (손절 없음) · 최대 3슬롯
+- A트랙이 조용한 조정기에 신호가 나는 상호보완 구조
 
 **검증 근거 (5년 백테스트, 2021.7~2026.7, 수수료 0.3% 반영)**
 - 30개 기술 팩터 전수조사 중 유일하게 5년 전 연도에서 무작위 대비 우위를 유지한 팩터

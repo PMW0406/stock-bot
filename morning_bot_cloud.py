@@ -48,6 +48,13 @@ REGIME_MA         = 120                 # 코스피 국면 이평
 REGIME_CONFIRM    = 5                   # 국면 전환 확인일수 (5일 연속 유지 시 전환 — 요동 방지)
 HISTORY_PATH      = "history.json"
 
+# ── 보조 트랙 B: 초대형주 회귀 (조정장용 · 승률 74% 검증) ──
+B_SLOTS           = 3                   # 보조 트랙 슬롯
+B_MARCAP_MIN      = 5_000_000_000_000   # 시총 5조↑ (초대형)
+B_RSI2_MAX        = 10                  # RSI(2) 과매도
+B_TARGET          = 0.03                # +3% 목표 익절
+B_HOLD            = 10                  # 최대 10거래일 (목표 미달 시 종가 청산)
+
 
 # ─────────────────────────────────────────
 def check_us_market():
@@ -129,16 +136,21 @@ def update_positions(hist):
                 kept.append(p); continue
             df.index = pd.to_datetime(df.index).strftime("%Y-%m-%d")
 
-            # 1) pending 체결 확정 (진입일 시가 = 체결가, 갭 +2%↑ 또는 -3%↓면 취소)
+            track = p.get("track", "A")
+
+            # 1) pending 체결 확정 (진입일 시가 = 체결가; A트랙만 갭 ±필터로 취소)
             if p.get("entry_price") is None:
                 if p["entry_date"] in df.index:
                     o = float(df.loc[p["entry_date"], "Open"])
                     gap = (o - p["ref_close"]) / p["ref_close"] * 100 if p.get("ref_close") else 0
-                    if gap >= GAP_MAX or gap <= GAP_MIN:
+                    if track == "A" and (gap >= GAP_MAX or gap <= GAP_MIN):
                         cancels.append({**p, "reason": f"갭 {gap:+.1f}% 진입취소"})
                         continue
                     p["entry_price"] = round(o, 2)
-                    p["stop_price"]  = round(o * (1 - STOP_LOSS), 2)
+                    if track == "A":
+                        p["stop_price"] = round(o * (1 - STOP_LOSS), 2)
+                    else:
+                        p["target_price"] = round(o * (1 + B_TARGET), 2)
                 else:
                     kept.append(p); continue    # 아직 진입일 시세 없음 (휴장 등)
 
@@ -149,33 +161,58 @@ def update_positions(hist):
             cur = float(held["Close"].iloc[-1])
             ret = (cur - p["entry_price"]) / p["entry_price"] * 100
 
-            # 2) 손절: 종가 기준 -10% 이탈 (장중 꼬리 무시 — v14.2)
-            breach = held[held["Close"] <= p["stop_price"]]
-            if not breach.empty:
-                breach_date  = breach.index[0]
-                breach_close = float(breach["Close"].iloc[0])
-                ret_stop = (breach_close - p["entry_price"]) / p["entry_price"] * 100
-                hist["closed"].append({
-                    "code": p["code"], "name": p["name"],
-                    "entry_date": p["entry_date"], "entry_price": p["entry_price"],
-                    "exit_date": breach_date, "exit_price": breach_close,
-                    "ret_pct": round(ret_stop, 2), "reason": "손절 -10%(종가)",
-                })
-                sell_alerts.append({"name": p["name"], "code": p["code"],
-                                    "msg": f"🛑 종가가 손절선 {p['stop_price']:,.0f}원 이탈 ({breach_date}, {ret_stop:+.1f}%) — 오늘 매도"})
-                continue
+            if track == "B":
+                # B-1) 목표 +3% 터치 → 익절 (지정가 체결 가정)
+                hit = held[held["High"] >= p["target_price"]]
+                if not hit.empty:
+                    hist["closed"].append({
+                        "code": p["code"], "name": p["name"], "track": "B",
+                        "entry_date": p["entry_date"], "entry_price": p["entry_price"],
+                        "exit_date": hit.index[0], "exit_price": p["target_price"],
+                        "ret_pct": round(B_TARGET * 100, 2), "reason": f"목표 +{B_TARGET*100:.0f}%",
+                    })
+                    sell_alerts.append({"name": p["name"], "code": p["code"],
+                                        "msg": f"🎯 [B트랙] 목표가 {p['target_price']:,.0f}원 도달 ({hit.index[0]}) — 지정가 미체결시 오늘 매도"})
+                    continue
+                # B-2) 10거래일 만기
+                if days_held >= B_HOLD:
+                    hist["closed"].append({
+                        "code": p["code"], "name": p["name"], "track": "B",
+                        "entry_date": p["entry_date"], "entry_price": p["entry_price"],
+                        "exit_date": held.index[-1], "exit_price": cur,
+                        "ret_pct": round(ret, 2), "reason": f"{B_HOLD}일 만기(B)",
+                    })
+                    sell_alerts.append({"name": p["name"], "code": p["code"],
+                                        "msg": f"⏰ [B트랙] {B_HOLD}거래일 만기 ({ret:+.1f}%) — 오늘 매도"})
+                    continue
+            else:
+                # 2) A: 손절 — 종가 기준 -10% 이탈 (장중 꼬리 무시)
+                breach = held[held["Close"] <= p["stop_price"]]
+                if not breach.empty:
+                    breach_date  = breach.index[0]
+                    breach_close = float(breach["Close"].iloc[0])
+                    ret_stop = (breach_close - p["entry_price"]) / p["entry_price"] * 100
+                    hist["closed"].append({
+                        "code": p["code"], "name": p["name"], "track": "A",
+                        "entry_date": p["entry_date"], "entry_price": p["entry_price"],
+                        "exit_date": breach_date, "exit_price": breach_close,
+                        "ret_pct": round(ret_stop, 2), "reason": "손절 -10%(종가)",
+                    })
+                    sell_alerts.append({"name": p["name"], "code": p["code"],
+                                        "msg": f"🛑 종가가 손절선 {p['stop_price']:,.0f}원 이탈 ({breach_date}, {ret_stop:+.1f}%) — 오늘 매도"})
+                    continue
 
-            # 3) 만기: 15거래일 도래
-            if days_held >= HOLD_DAYS:
-                hist["closed"].append({
-                    "code": p["code"], "name": p["name"],
-                    "entry_date": p["entry_date"], "entry_price": p["entry_price"],
-                    "exit_date": held.index[-1], "exit_price": cur,
-                    "ret_pct": round(ret, 2), "reason": f"{HOLD_DAYS}일 만기",
-                })
-                sell_alerts.append({"name": p["name"], "code": p["code"],
-                                    "msg": f"⏰ {HOLD_DAYS}거래일 만기 (수익 {ret:+.1f}%) — 오늘 매도"})
-                continue
+                # 3) A: 만기 — 15거래일 도래
+                if days_held >= HOLD_DAYS:
+                    hist["closed"].append({
+                        "code": p["code"], "name": p["name"], "track": "A",
+                        "entry_date": p["entry_date"], "entry_price": p["entry_price"],
+                        "exit_date": held.index[-1], "exit_price": cur,
+                        "ret_pct": round(ret, 2), "reason": f"{HOLD_DAYS}일 만기",
+                    })
+                    sell_alerts.append({"name": p["name"], "code": p["code"],
+                                        "msg": f"⏰ {HOLD_DAYS}거래일 만기 (수익 {ret:+.1f}%) — 오늘 매도"})
+                    continue
 
             # 4) 계속 보유
             p["current"]   = round(cur, 2)
@@ -188,6 +225,41 @@ def update_positions(hist):
 
     hist["positions"] = kept
     return sell_alerts, cancels
+
+
+def _rsi(close, p=2):
+    d = close.diff(); up = d.clip(lower=0); dn = -d.clip(upper=0)
+    ru = up.ewm(alpha=1/p, adjust=False).mean(); rd = dn.ewm(alpha=1/p, adjust=False).mean()
+    return (100 - 100 / (1 + ru / rd.replace(0, np.nan))).fillna(50)
+
+
+def get_candidates_b(exclude_codes):
+    """트랙B 스캔: 초대형주(5조↑) + 200일선 위 + RSI2<10 과매도 (조정장 회귀, 승률 74%)"""
+    print("트랙B(초대형 회귀) 스캔 중...")
+    start = (datetime.today() - timedelta(days=400)).strftime("%Y-%m-%d")
+    all_s = pd.concat([fdr.StockListing("KOSPI"), fdr.StockListing("KOSDAQ")], ignore_index=True)
+    mega  = all_s[all_s["Marcap"] >= B_MARCAP_MIN]
+    name_map = dict(zip(mega["Code"], mega["Name"]))
+    results = []
+    for tk in mega["Code"].tolist():
+        if tk in exclude_codes: continue
+        try:
+            df = fdr.DataReader(tk, start)
+            if df.empty or len(df) < 220: continue
+            close = df["Close"]
+            c     = float(close.iloc[-1])
+            ma200 = float(close.rolling(200).mean().iloc[-1])
+            if np.isnan(ma200) or c <= ma200: continue
+            r2 = float(_rsi(close, 2).iloc[-1])
+            if r2 >= B_RSI2_MAX: continue
+            results.append({"code": tk, "name": name_map.get(tk, tk),
+                            "close": c, "rsi2": round(r2, 1),
+                            "ma200_dist": round((c/ma200-1)*100, 1)})
+        except:
+            continue
+    results.sort(key=lambda x: x["rsi2"])   # 과매도 심한 순
+    print(f"   -> B후보 {len(results)}개")
+    return results
 
 
 # ─────────────────────────────────────────
@@ -238,7 +310,8 @@ def get_candidates(exclude_codes):
 
 # ─────────────────────────────────────────
 def build_email(regime_on, regime_msg, sp_ret, nq_ret, sox_ret, us_date,
-                positions, sell_alerts, cancels, candidates, new_entries):
+                positions, sell_alerts, cancels, candidates, new_entries,
+                new_entries_b=None):
     today = datetime.today().strftime("%Y-%m-%d")
     g = "#00c853"; r = "#ff1744"
 
@@ -253,26 +326,33 @@ def build_email(regime_on, regime_msg, sp_ret, nq_ret, sox_ret, us_date,
         sell_html += f"""<div style="background:#241a2a;padding:10px 14px;border-radius:8px;margin-bottom:14px;color:#caa;font-size:13px;">
           갭 진입취소: <ul style="margin:4px 0 0;padding-left:18px;">{items}</ul></div>"""
 
-    # 보유 포지션
+    # 보유 포지션 (A/B 트랙 표시)
     pos_rows = ""
-    for p in sorted(positions, key=lambda x: x.get("days_held", 0), reverse=True):
+    for p in sorted(positions, key=lambda x: (x.get("track","A"), -(x.get("days_held",0) or 0))):
         pending = p.get("entry_price") is None
         ret = p.get("ret_pct"); col = g if (ret or 0) >= 0 else r
+        track = p.get("track", "A")
+        max_d = HOLD_DAYS if track == "A" else B_HOLD
+        exit_txt = (f"{p.get('stop_price',0):,.0f}" if track == "A" else
+                    f"목표 {p.get('target_price',0):,.0f}") if not pending else "-"
+        badge = "" if track == "A" else " <span style='background:#123a5c;color:#7cc7ff;border-radius:4px;padding:1px 6px;font-size:10px;'>B</span>"
         pos_rows += f"""<tr>
-          <td style="padding:8px;">{p['name']}<span style="color:#666;font-size:11px;"> {p['code']}</span></td>
+          <td style="padding:8px;">{p['name']}{badge}<span style="color:#666;font-size:11px;"> {p['code']}</span></td>
           <td style="padding:8px;text-align:center;">{p['entry_date'][5:]}</td>
           <td style="padding:8px;text-align:right;">{'체결대기' if pending else f"{p['entry_price']:,.0f}"}</td>
           <td style="padding:8px;text-align:right;">{f"{p.get('current',0):,.0f}" if not pending else '-'}</td>
           <td style="padding:8px;text-align:right;color:{col};font-weight:bold;">{f"{ret:+.1f}%" if ret is not None else '-'}</td>
-          <td style="padding:8px;text-align:center;">{p.get('days_held','-')}/{HOLD_DAYS}일</td>
-          <td style="padding:8px;text-align:right;color:{r};">{f"{p.get('stop_price',0):,.0f}" if not pending else '-'}</td>
+          <td style="padding:8px;text-align:center;">{p.get('days_held','-')}/{max_d}일</td>
+          <td style="padding:8px;text-align:right;color:{r if track=='A' else g};">{exit_txt}</td>
         </tr>"""
+    n_a = sum(1 for p in positions if p.get("track","A")=="A")
+    n_b = len(positions) - n_a
     pos_html = f"""<div style="background:#1e1e1e;padding:14px;border-radius:8px;margin-bottom:14px;">
-      <h3 style="color:#64b5f6;margin:0 0 10px;">💼 보유 {len(positions)}/{SLOTS}</h3>
+      <h3 style="color:#64b5f6;margin:0 0 10px;">💼 보유 — A(신고가) {n_a}/{SLOTS} · B(초대형회귀) {n_b}/{B_SLOTS}</h3>
       <table style="width:100%;border-collapse:collapse;font-size:13px;color:#ddd;">
         <tr style="color:#888;font-size:12px;"><th style="text-align:left;padding:8px;">종목</th><th>진입일</th>
         <th style="text-align:right;">진입가</th><th style="text-align:right;">현재가</th>
-        <th style="text-align:right;">수익률</th><th>보유일</th><th style="text-align:right;">손절가</th></tr>
+        <th style="text-align:right;">수익률</th><th>보유일</th><th style="text-align:right;">손절/목표</th></tr>
         {pos_rows if pos_rows else '<tr><td colspan="7" style="padding:12px;color:#666;">보유 없음</td></tr>'}
       </table></div>"""
 
@@ -291,7 +371,20 @@ def build_email(regime_on, regime_msg, sp_ret, nq_ret, sox_ret, us_date,
           <p style="color:#888;font-size:12px;margin:8px 0 0;">※ 시가가 전일종가 대비 +{GAP_MAX:.0f}% 이상 갭상승이면 매수 보류 (봇도 자동 취소 처리)</p></div>"""
     elif regime_on:
         buy_html = """<div style="background:#1e1e1e;padding:12px 14px;border-radius:8px;margin-bottom:14px;color:#888;font-size:13px;">
-          오늘 신규 매수 없음 (슬롯 가득 또는 후보 없음)</div>"""
+          오늘 A트랙 신규 매수 없음 (슬롯 가득·후보 없음·브레이커)</div>"""
+
+    # 트랙B 신규 매수 (초대형주 회귀)
+    if new_entries_b:
+        rows = "".join(f"""<tr>
+          <td style="padding:8px;font-weight:bold;">{i}. {c['name']}<span style="color:#666;font-size:11px;"> {c['code']}</span></td>
+          <td style="padding:8px;text-align:right;">{c['close']:,.0f}원</td>
+          <td style="padding:8px;text-align:right;color:#7cc7ff;">RSI2 {c['rsi2']}</td>
+          <td style="padding:8px;text-align:right;color:{g};">목표 {c['close']*(1+B_TARGET):,.0f}원</td>
+        </tr>""" for i, c in enumerate(new_entries_b, 1))
+        buy_html += f"""<div style="background:#12233a;border:1px solid #2d6cdf;padding:14px;border-radius:8px;margin-bottom:14px;">
+          <h3 style="color:#7cc7ff;margin:0 0 8px;">🔵 B트랙 매수 (초대형 과매도 회귀) — {len(new_entries_b)}종목</h3>
+          <table style="width:100%;border-collapse:collapse;font-size:13px;color:#ddd;">{rows}</table>
+          <p style="color:#889;font-size:12px;margin:8px 0 0;">※ 내일 시가 매수 후 <b>+{B_TARGET*100:.0f}% 지정가 매도</b> 예약 · 미체결 시 {B_HOLD}거래일째 종가 매도 · 손절 없음(승률 74% 검증)</p></div>"""
 
     # 대기 후보
     watch_html = ""
@@ -314,10 +407,10 @@ def build_email(regime_on, regime_msg, sp_ret, nq_ret, sox_ret, us_date,
     </div>
     {sell_html}{buy_html}{pos_html}{watch_html}
     <p style="color:#555;font-size:11px;margin-top:18px;">
-      전략 v14: 코스피>120일선 국면 + 52주 신고가 -5%이내 + 거래대금30억 + MA5>MA20 |
-      청산: {HOLD_DAYS}거래일 or 종가 -10% 손절 | 분산 {SLOTS}슬롯<br>
-      5년 백테스트(2022~2026) 전 연도 플러스 · CAGR 10~18% · MDD -19~-31% (완전분산 기준, 실전은 이보다 낮게 기대)<br>
-      투자는 본인 판단 하에 진행하세요.
+      A트랙(주력): 신고가 -5%이내 모멘텀 · {HOLD_DAYS}일/종가-10%손절 · {SLOTS}슬롯 |
+      B트랙(보조): 초대형 RSI2 과매도 회귀 · +{B_TARGET*100:.0f}%목표/{B_HOLD}일 · {B_SLOTS}슬롯<br>
+      국면: 코스피 120일선 (5일 확인) · 서킷브레이커: 10청산 중 7손절 시 A트랙 5일 중단<br>
+      5년 검증: A 전연도 플러스(CAGR 8~12% 기대) · B 승률 74% | 투자는 본인 판단 하에.
     </p>
   </div>
 </body></html>"""
@@ -364,29 +457,45 @@ def main():
         brk["pause_left"] -= 1
         regime_msg += f" | 🚨 서킷브레이커: 신규진입 중단 (잔여 {brk['pause_left']+1}일)"
 
-    # 3) 신규 후보 스캔 (국면 ON + 브레이커 미발동일 때만)
+    # 3-A) 트랙A 스캔 (국면 ON + 브레이커 미발동)
     candidates, new_entries = [], []
+    a_pos = [p for p in hist["positions"] if p.get("track", "A") == "A"]
     if regime_on and breaker_active:
-        print("서킷브레이커 활성 → 스캔 생략 (보유종목 관리만)")
+        print("서킷브레이커 활성 → A트랙 스캔 생략 (보유종목 관리만)")
     elif regime_on:
         held_codes = {p["code"] for p in hist["positions"]}
         candidates = get_candidates(held_codes)
-        empty = SLOTS - len(hist["positions"])
+        empty = SLOTS - len(a_pos)
         for c in candidates[:max(0, empty)]:
-            ref_close = c["close"]     # 전일 종가 (오늘 시가로 체결, 내일 확정)
             hist["positions"].append({
-                "code": c["code"], "name": c["name"],
+                "code": c["code"], "name": c["name"], "track": "A",
                 "entry_date": today_str, "entry_price": None,
-                "ref_close": ref_close, "stop_price": None,
+                "ref_close": c["close"], "stop_price": None,
             })
             new_entries.append(c)
-        print(f"신규 매수 {len(new_entries)}개 (빈슬롯 {empty})")
+        print(f"A트랙 신규 {len(new_entries)}개 (빈슬롯 {empty})")
     else:
-        print("약세장 → 스캔 생략, 현금 대기")
+        print("약세장 → A트랙 스캔 생략, 현금 대기")
+
+    # 3-B) 트랙B 스캔 (국면 ON이면 브레이커와 무관 — 조정기 회귀는 이때가 제철)
+    candidates_b, new_entries_b = [], []
+    if regime_on:
+        held_codes = {p["code"] for p in hist["positions"]}
+        b_pos = [p for p in hist["positions"] if p.get("track") == "B"]
+        candidates_b = get_candidates_b(held_codes)
+        empty_b = B_SLOTS - len(b_pos)
+        for c in candidates_b[:max(0, empty_b)]:
+            hist["positions"].append({
+                "code": c["code"], "name": c["name"], "track": "B",
+                "entry_date": today_str, "entry_price": None,
+                "ref_close": c["close"], "target_price": None,
+            })
+            new_entries_b.append(c)
+        print(f"B트랙 신규 {len(new_entries_b)}개 (빈슬롯 {empty_b})")
 
     save_history(hist)
 
-    # 3) candidates.json (Streamlit 앱용)
+    # 4) candidates.json (Streamlit 앱용)
     with open("candidates.json", "w", encoding="utf-8") as f:
         json.dump({
             "format": "v14",
@@ -394,14 +503,18 @@ def main():
             "regime_on": regime_on, "regime_msg": regime_msg,
             "candidates": candidates[:20],
             "new_entries": [c["code"] for c in new_entries],
+            "candidates_b": candidates_b[:10],
+            "new_entries_b": [c["code"] for c in new_entries_b],
         }, f, ensure_ascii=False, indent=2)
 
-    # 4) 메일
+    # 5) 메일
     body = build_email(regime_on, regime_msg, sp_ret, nq_ret, sox_ret, us_date,
-                       hist["positions"], sell_alerts, cancels, candidates, new_entries)
+                       hist["positions"], sell_alerts, cancels, candidates, new_entries,
+                       new_entries_b)
     n_closed_today = len(sell_alerts)
+    n_buy = len(new_entries) + len(new_entries_b)
     subject = f"Daily News {today_str} — " + (
-        f"매수{len(new_entries)} 매도{n_closed_today} 보유{len(hist['positions'])}" if regime_on
+        f"매수{n_buy} 매도{n_closed_today} 보유{len(hist['positions'])}" if regime_on
         else f"현금대기 (매도{n_closed_today} 보유{len(hist['positions'])})")
     send_email(subject, body)
     print(f"\n메일 발송 완료 → {RECEIVE_EMAIL}")
