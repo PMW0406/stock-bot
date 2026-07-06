@@ -45,6 +45,7 @@ MARKET_CAP_MIN    = 100_000_000_000
 MARKET_CAP_MAX    = 5_000_000_000_000
 MIN_TRADING_VALUE = 3_000_000_000       # 거래대금 30억
 REGIME_MA         = 120                 # 코스피 국면 이평
+REGIME_CONFIRM    = 5                   # 국면 전환 확인일수 (5일 연속 유지 시 전환 — 요동 방지)
 HISTORY_PATH      = "history.json"
 
 
@@ -63,20 +64,31 @@ def check_us_market():
 
 
 def check_regime():
-    """국면: 코스피 종가 > 120일선"""
+    """국면: 코스피 vs 120일선 + 히스테리시스(5일 연속 유지 시에만 전환 — 요동 방지)"""
     end   = datetime.today().strftime("%Y-%m-%d")
-    start = (datetime.today() - timedelta(days=300)).strftime("%Y-%m-%d")
+    start = (datetime.today() - timedelta(days=420)).strftime("%Y-%m-%d")
     try:
         df = fdr.DataReader("KS11", start, end)
         close = df["Close"]
-        if len(close) < REGIME_MA + 5:
+        if len(close) < REGIME_MA + 30:
             return False, "코스피 데이터 부족"
+        ma  = close.rolling(REGIME_MA).mean()
+        raw = (close > ma).dropna().tolist()
+        state = raw[0]; cnt = 0
+        for x in raw[1:]:
+            if x != state:
+                cnt += 1
+                if cnt >= REGIME_CONFIRM:
+                    state = x; cnt = 0
+            else:
+                cnt = 0
         c    = float(close.iloc[-1])
-        ma   = float(close.rolling(REGIME_MA).mean().iloc[-1])
-        dist = (c / ma - 1) * 100
-        if c > ma:
-            return True, f"코스피 {c:,.0f} > 120일선 {ma:,.0f} ({dist:+.1f}%) — 매매 ON"
-        return False, f"코스피 {c:,.0f} < 120일선 {ma:,.0f} ({dist:+.1f}%) — 현금 대기"
+        m    = float(ma.iloc[-1])
+        dist = (c / m - 1) * 100
+        pend = f" (전환 진행 {cnt}/{REGIME_CONFIRM}일)" if cnt > 0 else ""
+        if state:
+            return True, f"코스피 {c:,.0f} vs 120일선 {m:,.0f} ({dist:+.1f}%) — 매매 ON{pend}"
+        return False, f"코스피 {c:,.0f} vs 120일선 {m:,.0f} ({dist:+.1f}%) — 현금 대기{pend}"
     except Exception as e:
         return False, f"국면 확인 실패: {e}"
 

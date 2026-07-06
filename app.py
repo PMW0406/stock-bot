@@ -52,12 +52,20 @@ def normalize_df(df):
 
 
 def check_regime():
+    """코스피 vs 120일선 + 5일 확인 히스테리시스 (봇과 동일)"""
     try:
-        df = fdr.DataReader("KS11", (datetime.today() - timedelta(days=300)).strftime("%Y-%m-%d"))
+        df = fdr.DataReader("KS11", (datetime.today() - timedelta(days=420)).strftime("%Y-%m-%d"))
         close = df["Close"]
-        c  = float(close.iloc[-1])
-        ma = float(close.rolling(REGIME_MA).mean().iloc[-1])
-        return c > ma, c, ma
+        ma = close.rolling(REGIME_MA).mean()
+        raw = (close > ma).dropna().tolist()
+        state = raw[0]; cnt = 0
+        for x in raw[1:]:
+            if x != state:
+                cnt += 1
+                if cnt >= 5: state = x; cnt = 0
+            else:
+                cnt = 0
+        return bool(state), float(close.iloc[-1]), float(ma.iloc[-1])
     except:
         return None, None, None
 
@@ -401,7 +409,7 @@ with tab3:
     st.divider()
     with st.expander("📖 v14 전략 전문 보기"):
         st.markdown(f"""
-**국면 게이트** — 코스피 종가 > 120일선일 때만 매매, 아니면 전량 현금
+**국면 게이트** — 코스피 종가 vs 120일선, **5일 연속 유지 시에만 ON/OFF 전환**(요동 방지 히스테리시스). ON일 때만 매매, OFF면 전량 현금
 
 **매수 조건 (전부 충족)**
 1. 시가총액 1,000억 ~ 5조
