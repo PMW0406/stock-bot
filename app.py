@@ -288,28 +288,25 @@ with tab2:
                 held = p.get("days_held", 0) or 0
                 barw = min(int(held / HOLD_DAYS * 100), 100)
                 stop_txt = f"{p['stop_price']:,.0f}원" if p.get("stop_price") else "-"
-                st.markdown(f"""
-<div class="stock-card">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-    <div>
-      <span class="stock-name">{p['name']}</span>
-      <span class="stock-code">{p['code']}</span>
-      {'<span class="tag" style="background:#4a3800;color:#ffc107;margin-left:8px;">체결대기</span>' if pending else ''}
-    </div>
-    <div style="text-align:right;">
-      <div style="color:#718096;font-size:11px;">현재가</div>
-      <div style="font-size:18px;font-weight:700;color:{pct_color(ret)};">{f"{cur:,.0f}원" if cur else "-"} <span style="font-size:13px;">({f"{ret:+.1f}%" if ret is not None else "-"})</span></div>
-    </div>
-  </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
-    <div class="mini-box"><div class="mini-title">진입 ({p['entry_date'][5:]})</div>
-      <div style="color:#e2e8f0;font-size:14px;font-weight:600;">{'대기' if pending else f"{p['entry_price']:,.0f}원"}</div></div>
-    <div class="mini-box"><div class="mini-title">보유일 {held}/{HOLD_DAYS}</div>
-      <div style="background:#2d3748;border-radius:4px;height:8px;margin-top:6px;"><div style="background:#63b3ed;width:{barw}%;height:8px;border-radius:4px;"></div></div></div>
-    <div class="mini-box"><div class="mini-title">손절가 (-8%)</div>
-      <div style="color:#ff1744;font-size:14px;font-weight:600;">{stop_txt}</div></div>
-  </div>
-</div>""", unsafe_allow_html=True)
+                ptag = '<span class="tag" style="background:#4a3800;color:#ffc107;margin-left:8px;">체결대기</span>' if pending else ""
+                cur_txt = f"{cur:,.0f}원" if cur else "-"
+                ret_txt = f"{ret:+.1f}%" if ret is not None else "-"
+                entry_txt = "대기" if pending else f"{p['entry_price']:,.0f}원"
+                st.markdown(
+                    f'<div class="stock-card">'
+                    f'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">'
+                    f'<div><span class="stock-name">{p["name"]}</span><span class="stock-code">{p["code"]}</span>{ptag}</div>'
+                    f'<div style="text-align:right;"><div style="color:#718096;font-size:11px;">현재가</div>'
+                    f'<div style="font-size:18px;font-weight:700;color:{pct_color(ret)};">{cur_txt} <span style="font-size:13px;">({ret_txt})</span></div></div>'
+                    f'</div>'
+                    f'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">'
+                    f'<div class="mini-box"><div class="mini-title">진입 ({p["entry_date"][5:]})</div>'
+                    f'<div style="color:#e2e8f0;font-size:14px;font-weight:600;">{entry_txt}</div></div>'
+                    f'<div class="mini-box"><div class="mini-title">보유일 {held}/{HOLD_DAYS}</div>'
+                    f'<div style="background:#2d3748;border-radius:4px;height:8px;margin-top:6px;"><div style="background:#63b3ed;width:{barw}%;height:8px;border-radius:4px;"></div></div></div>'
+                    f'<div class="mini-box"><div class="mini-title">손절가 (-8%)</div>'
+                    f'<div style="color:#ff1744;font-size:14px;font-weight:600;">{stop_txt}</div></div>'
+                    f'</div></div>', unsafe_allow_html=True)
         else:
             st.info("보유 종목 없음 (약세장 대기 또는 시작 전)")
 
