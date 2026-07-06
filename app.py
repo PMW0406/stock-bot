@@ -234,54 +234,121 @@ with tab2:
         positions = hist.get("positions", [])
         closed    = hist.get("closed", [])
 
+        # ── 공통 스타일 (v13 카드 디자인 계승) ──
+        st.markdown("""
+<style>
+.stock-card {
+    background: #1a1a2e;
+    border: 1px solid #2d3748;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 10px;
+}
+.stock-name { font-size: 16px; font-weight: 700; color: #e2e8f0; }
+.stock-code { font-size: 12px; color: #718096; margin-left: 8px; }
+.tag { display: inline-block; border-radius: 6px; padding: 2px 10px; font-size: 12px; font-weight: 600; }
+.mini-box { background:#0d1117; border-radius:8px; padding:10px 14px; }
+.mini-title { color:#718096; font-size:11px; margin-bottom:4px; }
+</style>""", unsafe_allow_html=True)
+
+        def pct_color(x):
+            if x is None: return "#888"
+            return "#00c853" if x >= 0 else "#ff1744"
+
         # ── 요약 카드 ──
         if closed:
             rets = [c["ret_pct"] for c in closed if c.get("ret_pct") is not None]
             wins = [x for x in rets if x > 0]
+            unreal = [p.get("ret_pct") for p in positions if p.get("ret_pct") is not None]
             cols = st.columns(4)
             metrics = [
-                ("완료 거래", f"{len(closed)}건", "손절+만기 청산"),
-                ("승률", f"{len(wins)/len(rets)*100:.0f}%" if rets else "-", f"수익 {len(wins)} / 전체 {len(rets)}"),
-                ("평균 수익률", f"{np.mean(rets):+.2f}%" if rets else "-", "거래당 실현"),
-                ("누적 합산", f"{np.sum(rets):+.1f}%" if rets else "-", "단순 합산 (슬롯비중 미반영)"),
+                ("완료 거래", f"{len(closed)}건", f"만기 {sum(1 for c in closed if '만기' in c['reason'])} · 손절 {sum(1 for c in closed if '손절' in c['reason'])}", "#63b3ed"),
+                ("승률", f"{len(wins)/len(rets)*100:.0f}%" if rets else "-", f"수익 {len(wins)} / 전체 {len(rets)}", "#63b3ed"),
+                ("평균 수익률", f"{np.mean(rets):+.2f}%" if rets else "-", "거래당 실현 기준", pct_color(np.mean(rets) if rets else None)),
+                ("보유중 평가", f"{np.mean(unreal):+.1f}%" if unreal else "-", f"{len(positions)}종목 평균 수익률", pct_color(np.mean(unreal) if unreal else None)),
             ]
-            for col, (t, v, s) in zip(cols, metrics):
-                neg = v.startswith("-")
-                col.markdown(f"""<div style="background:#1a1a2e;border:1px solid #2d3748;border-radius:12px;padding:16px;text-align:center;">
-                  <div style="color:#a0aec0;font-size:12px;margin-bottom:6px;">{t}</div>
-                  <div style="font-size:24px;font-weight:700;color:{'#ff1744' if neg else '#00c853'};">{v}</div>
+            for col, (t, v, s, vc) in zip(cols, metrics):
+                col.markdown(f"""<div style="background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);border:1px solid #0f3460;border-radius:16px;padding:20px 16px;text-align:center;">
+                  <div style="color:#a0aec0;font-size:12px;font-weight:600;letter-spacing:1px;margin-bottom:6px;">{t}</div>
+                  <div style="font-size:26px;font-weight:700;color:{vc};">{v}</div>
                   <div style="color:#4a5568;font-size:11px;margin-top:4px;">{s}</div></div>""", unsafe_allow_html=True)
             st.markdown("<br>", unsafe_allow_html=True)
 
-        # ── 보유 포지션 ──
-        st.subheader(f"💼 보유 중 ({len(positions)}/{SLOTS})")
+        # ── 보유 포지션 카드 ──
+        st.markdown(f"""
+<div style="display:flex;align-items:center;margin:6px 0 12px 0;">
+  <div style="background:#0f3460;border-radius:8px;padding:4px 14px;font-size:14px;font-weight:700;color:#63b3ed;">💼 보유 중</div>
+  <div style="color:#4a5568;font-size:13px;margin-left:10px;">{len(positions)} / {SLOTS} 슬롯</div>
+</div>""", unsafe_allow_html=True)
         if positions:
-            rows = []
-            for p in positions:
+            for p in sorted(positions, key=lambda x: x.get("days_held", 0), reverse=True):
                 pending = p.get("entry_price") is None
-                rows.append({
-                    "종목명": p["name"], "코드": p["code"],
-                    "진입일": p["entry_date"],
-                    "진입가": "체결대기" if pending else f"{p['entry_price']:,.0f}원",
-                    "현재가": f"{p.get('current',0):,.0f}원" if p.get("current") else "-",
-                    "수익률": f"{p['ret_pct']:+.1f}%" if p.get("ret_pct") is not None else "-",
-                    "보유일": f"{p.get('days_held','-')}/{HOLD_DAYS}",
-                    "손절가": f"{p['stop_price']:,.0f}원" if p.get("stop_price") else "-",
-                })
-            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+                ret  = p.get("ret_pct")
+                cur  = p.get("current")
+                held = p.get("days_held", 0) or 0
+                barw = min(int(held / HOLD_DAYS * 100), 100)
+                stop_txt = f"{p['stop_price']:,.0f}원" if p.get("stop_price") else "-"
+                st.markdown(f"""
+<div class="stock-card">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+    <div>
+      <span class="stock-name">{p['name']}</span>
+      <span class="stock-code">{p['code']}</span>
+      {'<span class="tag" style="background:#4a3800;color:#ffc107;margin-left:8px;">체결대기</span>' if pending else ''}
+    </div>
+    <div style="text-align:right;">
+      <div style="color:#718096;font-size:11px;">현재가</div>
+      <div style="font-size:18px;font-weight:700;color:{pct_color(ret)};">{f"{cur:,.0f}원" if cur else "-"} <span style="font-size:13px;">({f"{ret:+.1f}%" if ret is not None else "-"})</span></div>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+    <div class="mini-box"><div class="mini-title">진입 ({p['entry_date'][5:]})</div>
+      <div style="color:#e2e8f0;font-size:14px;font-weight:600;">{'대기' if pending else f"{p['entry_price']:,.0f}원"}</div></div>
+    <div class="mini-box"><div class="mini-title">보유일 {held}/{HOLD_DAYS}</div>
+      <div style="background:#2d3748;border-radius:4px;height:8px;margin-top:6px;"><div style="background:#63b3ed;width:{barw}%;height:8px;border-radius:4px;"></div></div></div>
+    <div class="mini-box"><div class="mini-title">손절가 (-8%)</div>
+      <div style="color:#ff1744;font-size:14px;font-weight:600;">{stop_txt}</div></div>
+  </div>
+</div>""", unsafe_allow_html=True)
         else:
             st.info("보유 종목 없음 (약세장 대기 또는 시작 전)")
 
-        # ── 청산 기록 ──
-        st.subheader("📤 청산 기록")
+        # ── 청산 기록: 날짜별 카드 ──
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("""
+<div style="display:flex;align-items:center;margin:6px 0 12px 0;">
+  <div style="background:#0f3460;border-radius:8px;padding:4px 14px;font-size:14px;font-weight:700;color:#63b3ed;">📤 청산 기록</div>
+</div>""", unsafe_allow_html=True)
         if closed:
-            rows = [{
-                "종목명": c["name"], "코드": c["code"],
-                "진입일": c["entry_date"], "청산일": c["exit_date"],
-                "진입가": f"{c['entry_price']:,.0f}원", "청산가": f"{c['exit_price']:,.0f}원",
-                "수익률": f"{c['ret_pct']:+.2f}%", "사유": c["reason"],
-            } for c in sorted(closed, key=lambda x: x["exit_date"], reverse=True)]
-            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+            from itertools import groupby
+            closed_sorted = sorted(closed, key=lambda x: x["exit_date"], reverse=True)
+            show_all = st.toggle("전체 보기", value=False, help="끄면 최근 15건만 표시")
+            items = closed_sorted if show_all else closed_sorted[:15]
+            for exit_date, group in groupby(items, key=lambda x: x["exit_date"]):
+                group = list(group)
+                day_sum = sum(c["ret_pct"] for c in group)
+                st.markdown(f"""
+<div style="display:flex;align-items:center;margin:18px 0 8px 0;">
+  <div style="background:#16213e;border:1px solid #0f3460;border-radius:8px;padding:3px 12px;font-size:13px;font-weight:700;color:#63b3ed;">📅 {exit_date}</div>
+  <div style="color:#4a5568;font-size:12px;margin-left:10px;">{len(group)}건 청산 · 합산 <span style="color:{pct_color(day_sum)};">{day_sum:+.1f}%</span></div>
+</div>""", unsafe_allow_html=True)
+                for c in group:
+                    is_stop = "손절" in c["reason"]
+                    tag_bg, tag_fg = ("#3d1a1a", "#ff6b6b") if is_stop else ("#1a3d2a", "#4ade80")
+                    st.markdown(f"""
+<div class="stock-card" style="padding:12px 18px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;">
+    <div>
+      <span class="stock-name" style="font-size:15px;">{c['name']}</span>
+      <span class="stock-code">{c['code']}</span>
+      <span class="tag" style="background:{tag_bg};color:{tag_fg};margin-left:8px;">{c['reason']}</span>
+    </div>
+    <div style="font-size:18px;font-weight:700;color:{pct_color(c['ret_pct'])};">{c['ret_pct']:+.2f}%</div>
+  </div>
+  <div style="color:#718096;font-size:12px;margin-top:6px;">
+    {c['entry_date'][5:]} 진입 {c['entry_price']:,.0f}원 → {c['exit_date'][5:]} 청산 {c['exit_price']:,.0f}원
+  </div>
+</div>""", unsafe_allow_html=True)
         else:
             st.info("아직 청산된 거래가 없어요.")
 
