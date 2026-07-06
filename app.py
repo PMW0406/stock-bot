@@ -18,7 +18,7 @@ st.set_page_config(page_title="주식봇 v14", page_icon="📈", layout="wide")
 # ── v14 전략 상수 (morning_bot_cloud.py 와 동일) ──
 SLOTS             = 12
 HOLD_DAYS         = 15
-STOP_LOSS         = 0.08
+STOP_LOSS         = 0.10   # 종가 기준
 NEAR_HIGH         = -5.0
 GAP_MAX           = 2.0
 MARKET_CAP_MIN    = 100_000_000_000
@@ -149,7 +149,7 @@ def analyze_stock_v14(ticker, name=""):
 # UI
 # ─────────────────────────────────────────
 st.title("📈 주식봇 v14 — 52주 신고가 스윙")
-st.caption(f"코스피>120일선 국면 + 신고가 -5%이내 + 거래대금30억 + MA5>MA20 | {HOLD_DAYS}일 보유·-8%손절·{SLOTS}슬롯 | 5년 백테스트 전 연도 플러스")
+st.caption(f"코스피>120일선 국면 + 신고가 -5%이내 + 거래대금30억 + MA5>MA20 | {HOLD_DAYS}일 보유·종가-10%손절·{SLOTS}슬롯 | 5년 백테스트 전 연도 플러스")
 
 tab1, tab2, tab3 = st.tabs(["🏆 오늘의 후보", "💼 포트폴리오 & 히스토리", "🔍 종목 분석"])
 
@@ -312,7 +312,7 @@ with tab2:
                     f'<div style="color:#e2e8f0;font-size:14px;font-weight:600;">{entry_txt}</div></div>'
                     f'<div class="mini-box"><div class="mini-title">보유일 {held}/{HOLD_DAYS}</div>'
                     f'<div style="background:#2d3748;border-radius:4px;height:8px;margin-top:6px;"><div style="background:#63b3ed;width:{barw}%;height:8px;border-radius:4px;"></div></div></div>'
-                    f'<div class="mini-box"><div class="mini-title">손절가 (-8%)</div>'
+                    f'<div class="mini-box"><div class="mini-title">손절가 (-10%)</div>'
                     f'<div style="color:#ff1744;font-size:14px;font-weight:600;">{stop_txt}</div></div>'
                     f'</div></div>', unsafe_allow_html=True)
         else:
@@ -422,7 +422,7 @@ with tab3:
 - 최근 청산 10건 중 손절이 7건 이상이면 → **5거래일 신규진입 중단** (보유종목 관리는 계속)
 
 **청산 (조기 익절 없음 — 승자 태우기)**
-- {HOLD_DAYS}거래일 만기 매도 or -8% 손절
+- {HOLD_DAYS}거래일 만기 매도 or **종가 기준 -10% 손절** (장중 꼬리에 안 잘림)
 
 **자금 운용** — 최대 {SLOTS}종목 균등 분산 (종목당 자금의 {100//SLOTS}%)
 

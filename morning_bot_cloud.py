@@ -7,7 +7,7 @@
   진입: 시총 1000억~5조 + 20일평균 거래대금 30억↑
         + 52주 최고가 대비 -5% 이내 + MA5 > MA20
         (시가 갭 +2% 이상이면 다음날 자동 진입취소)
-  청산: 15거래일 보유 or -8% 손절 (조기 익절 없음)
+  청산: 15거래일 보유 or 종가 -10% 손절 (조기 익절 없음)
   분산: 최대 12슬롯 균등 — 봇이 가상 포트폴리오로 추적, 매도알림 발송
 """
 
@@ -34,7 +34,7 @@ RECEIVE_EMAIL     = os.environ["RECEIVE_EMAIL"]
 # ── v14 전략 상수 ─────────────────────────
 SLOTS             = 12                  # 최대 동시보유
 HOLD_DAYS         = 15                  # 보유 거래일
-STOP_LOSS         = 0.08                # 손절 -8%
+STOP_LOSS         = 0.10                # 손절 -10% (종가 기준 — 장중 꼬리에 안 잘림, 승률 34→41% 검증)
 NEAR_HIGH         = -5.0                # 52주 고가 대비 -5% 이내
 GAP_MAX           = 2.0                 # 시가 갭 +2% 이상이면 진입취소
 GAP_MIN           = -3.0                # 시가 갭 -3% 이하(급락 출발)도 진입취소
@@ -149,18 +149,20 @@ def update_positions(hist):
             cur = float(held["Close"].iloc[-1])
             ret = (cur - p["entry_price"]) / p["entry_price"] * 100
 
-            # 2) 손절: 보유 중 저가가 손절가 이탈
-            low_min = float(held["Low"].min())
-            if low_min <= p["stop_price"]:
-                breach_date = held.index[held["Low"] <= p["stop_price"]][0]
+            # 2) 손절: 종가 기준 -10% 이탈 (장중 꼬리 무시 — v14.2)
+            breach = held[held["Close"] <= p["stop_price"]]
+            if not breach.empty:
+                breach_date  = breach.index[0]
+                breach_close = float(breach["Close"].iloc[0])
+                ret_stop = (breach_close - p["entry_price"]) / p["entry_price"] * 100
                 hist["closed"].append({
                     "code": p["code"], "name": p["name"],
                     "entry_date": p["entry_date"], "entry_price": p["entry_price"],
-                    "exit_date": breach_date, "exit_price": p["stop_price"],
-                    "ret_pct": round(-STOP_LOSS * 100, 2), "reason": "손절 -8%",
+                    "exit_date": breach_date, "exit_price": breach_close,
+                    "ret_pct": round(ret_stop, 2), "reason": "손절 -10%(종가)",
                 })
                 sell_alerts.append({"name": p["name"], "code": p["code"],
-                                    "msg": f"🛑 손절가 {p['stop_price']:,.0f}원 이탈 ({breach_date}) — 아직 보유중이면 매도"})
+                                    "msg": f"🛑 종가가 손절선 {p['stop_price']:,.0f}원 이탈 ({breach_date}, {ret_stop:+.1f}%) — 오늘 매도"})
                 continue
 
             # 3) 만기: 15거래일 도래
@@ -313,7 +315,7 @@ def build_email(regime_on, regime_msg, sp_ret, nq_ret, sox_ret, us_date,
     {sell_html}{buy_html}{pos_html}{watch_html}
     <p style="color:#555;font-size:11px;margin-top:18px;">
       전략 v14: 코스피>120일선 국면 + 52주 신고가 -5%이내 + 거래대금30억 + MA5>MA20 |
-      청산: {HOLD_DAYS}거래일 or -8% 손절 | 분산 {SLOTS}슬롯<br>
+      청산: {HOLD_DAYS}거래일 or 종가 -10% 손절 | 분산 {SLOTS}슬롯<br>
       5년 백테스트(2022~2026) 전 연도 플러스 · CAGR 10~18% · MDD -19~-31% (완전분산 기준, 실전은 이보다 낮게 기대)<br>
       투자는 본인 판단 하에 진행하세요.
     </p>
