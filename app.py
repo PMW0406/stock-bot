@@ -1,6 +1,7 @@
+# -*- coding: utf-8 -*-
 """
-주식봇 대시보드 - v13.2 전략
-추천주 + 종목 분석
+주식봇 대시보드 — v14 52주 신고가 스윙
+추천주(봇 스캔결과) + 히스토리(가상 포트폴리오) + 종목 분석
 """
 
 import streamlit as st
@@ -12,567 +13,277 @@ from datetime import datetime, timedelta
 import warnings
 warnings.filterwarnings("ignore")
 
-st.set_page_config(page_title="주식봇 v13.2", page_icon="📈", layout="wide")
+st.set_page_config(page_title="주식봇 v14", page_icon="📈", layout="wide")
 
-# 종목 리스트 로드 (자동완성용)
+# ── v14 전략 상수 (morning_bot_cloud.py 와 동일) ──
+SLOTS             = 12
+HOLD_DAYS         = 15
+STOP_LOSS         = 0.08
+NEAR_HIGH         = -5.0
+GAP_MAX           = 2.0
+MARKET_CAP_MIN    = 100_000_000_000
+MARKET_CAP_MAX    = 5_000_000_000_000
+MIN_TRADING_VALUE = 3_000_000_000
+REGIME_MA         = 120
+
+BASE = os.path.dirname(__file__)
+
+
 @st.cache_data
 def load_stock_list():
-    path = os.path.join(os.path.dirname(__file__), "stock_list.json")
+    path = os.path.join(BASE, "stock_list.json")
     if os.path.exists(path):
         with open(path, encoding="utf-8") as f:
             return json.load(f)
     return []
 
-MARKET_CAP_MIN    = 100_000_000_000
-MARKET_CAP_MAX    = 5_000_000_000_000
-MIN_TRADING_VALUE = 3_000_000_000
-MIN_SCORE         = 70
-
-# ─────────────────────────────────────────
-# 공통 함수
-# ─────────────────────────────────────────
-def stock_weekly_ok(df):
-    try:
-        df2 = df.copy()
-        df2.index = pd.to_datetime(df2.index)
-        wdf = df2.resample("W").agg({"Open":"first","High":"max","Low":"min","Close":"last","Volume":"sum"}).dropna()
-        if len(wdf) < 12: return False
-        close = wdf["Close"]
-        ma10  = close.rolling(10).mean()
-        c, m10 = float(close.iloc[-1]), float(ma10.iloc[-1])
-        if np.isnan(m10): return False
-        ret13w = (float(df["Close"].iloc[-1]) - float(df["Close"].iloc[-65])) / float(df["Close"].iloc[-65]) * 100 if len(df) >= 65 else 0
-        high52 = float(wdf["High"].iloc[-53:].max()) if len(wdf) >= 53 else float(wdf["High"].max())
-        return c > m10 and ret13w > 0 and (c - high52) / high52 * 100 >= -40
-    except:
-        return False
-
 
 def normalize_df(df):
-    """컬럼명 대문자 통일"""
     rename = {}
     for c in df.columns:
-        cl = c.lower()
-        if cl == "open":   rename[c] = "Open"
-        elif cl == "high":   rename[c] = "High"
-        elif cl == "low":    rename[c] = "Low"
-        elif cl == "close":  rename[c] = "Close"
+        cl = str(c).lower()
+        if cl == "open": rename[c] = "Open"
+        elif cl == "high": rename[c] = "High"
+        elif cl == "low": rename[c] = "Low"
+        elif cl == "close": rename[c] = "Close"
         elif cl == "volume": rename[c] = "Volume"
         elif cl in ("adj close", "adj_close"): rename[c] = "Close"
     return df.rename(columns=rename)
 
 
-def analyze_stock(ticker, name=""):
-    """단일 종목 v13.2 분석"""
-    start = (datetime.today() - timedelta(days=730)).strftime("%Y-%m-%d")
-    end   = datetime.today().strftime("%Y-%m-%d")
-    df = fdr.DataReader(ticker, start, end)
-    if df is None or df.empty:
-        return None
+def check_regime():
+    try:
+        df = fdr.DataReader("KS11", (datetime.today() - timedelta(days=300)).strftime("%Y-%m-%d"))
+        close = df["Close"]
+        c  = float(close.iloc[-1])
+        ma = float(close.rolling(REGIME_MA).mean().iloc[-1])
+        return c > ma, c, ma
+    except:
+        return None, None, None
+
+
+def analyze_stock_v14(ticker, name=""):
+    """단일 종목 v14 조건 체크"""
+    start = (datetime.today() - timedelta(days=420)).strftime("%Y-%m-%d")
+    df = fdr.DataReader(ticker, start)
+    if df is None or df.empty: return None
     df = normalize_df(df)
-    if "Close" not in df.columns or "Volume" not in df.columns:
-        return None
-    if len(df) < 65:
-        return None
-    df.index = pd.to_datetime(df.index)
+    if "Close" not in df.columns or len(df) < 260: return None
 
-    today = df.iloc[-1]
-    close = df["Close"]; volume = df["Volume"]
-    ma5  = close.rolling(5).mean()
-    ma20 = close.rolling(20).mean()
-    ma60 = close.rolling(60).mean()
-    ma5_now  = float(ma5.iloc[-1])
-    ma20_now = float(ma20.iloc[-1])
-    ma60_now = float(ma60.iloc[-1])
-
-    score = 0
-    if today["Close"] > ma20_now: score += 10
-    if ma20_now > ma60_now:       score += 10
-    ma60_prev = float(ma60.iloc[-11]) if len(ma60) > 11 else np.nan
-    if not np.isnan(ma60_prev) and ma60_now > ma60_prev: score += 10
-
-    ret_20 = (today["Close"] - close.iloc[-21]) / close.iloc[-21] * 100 if len(close) > 21 else 0
-    if ret_20 > 5:   score += 20
-    elif ret_20 > 0: score += 10
-
-    recent_high = close.iloc[-8:-1].max()
-    pullback    = (today["Close"] - recent_high) / recent_high * 100
-    if -8 <= pullback <= -3:   score += 20
-    elif -3 < pullback <= -1: score += 10
-
-    vol_recent   = volume.iloc[-4:-1].mean()
-    vol_before   = volume.iloc[-9:-4].mean()
-    vol_decrease = vol_recent < vol_before * 0.9 if vol_before > 0 else False
-    vol_5avg     = volume.iloc[-6:-1].mean()
-    vol_ratio    = float(today["Volume"]) / vol_5avg if vol_5avg > 0 else 0
-    if vol_decrease and vol_ratio >= 1.5: score += 20
-    elif vol_ratio >= 1.5:                score += 10
-
-    prev_close = float(df.iloc[-2]["Close"])
-    prev_ma5   = float(ma5.iloc[-2])
-    ma5_recov  = prev_close < prev_ma5 and today["Close"] > ma5_now
-    if ma5_recov: score += 10
-
-    w_ok = stock_weekly_ok(df)
-    if w_ok: score += 5
-
-    h_now = float(df["High"].iloc[-1]); l_now = float(df["Low"].iloc[-1])
-    cl = (today["Close"] - l_now) / (h_now - l_now) if (h_now - l_now) > 0 else 0.5
-
-    is_bearish_vol = (today["Close"] < today["Open"]) and (vol_ratio >= 2.0)
-    avg_value = (volume.iloc[-21:-1] * close.iloc[-21:-1]).mean()
+    close = df["Close"]; high = df["High"]; vol = df["Volume"]
+    c    = float(close.iloc[-1])
+    h52  = float(high.rolling(252).max().iloc[-1])
+    d52  = (c / h52 - 1) * 100 if h52 > 0 else -99
+    avg_value = float((vol * close).rolling(20).mean().iloc[-1])
+    ma5  = float(close.rolling(5).mean().iloc[-1])
+    ma20 = float(close.rolling(20).mean().iloc[-1])
 
     conds = {
-        "① 주봉 MA10 위 + 13주↑ + 52주고점-40%이내": w_ok,
-        "② 종가 > MA20 > MA60": today["Close"] > ma20_now and ma20_now > ma60_now,
-        "③ 풀백 -0.5%~-8%": -8 <= pullback <= -0.5,
-        "④ 거래량비 1.0~2.5배": 1.0 <= vol_ratio <= 2.5,
-        "⑤ 거래량 감소 중": vol_decrease,
-        "⑥ 음봉+거래량 폭발 없음": not is_bearish_vol,
-        "⑦ 종가위치 0.40~0.85": 0.40 <= cl <= 0.85,
-        "⑧ 거래대금 30억 이상": avg_value >= MIN_TRADING_VALUE,
+        f"① 52주 신고가 -{abs(NEAR_HIGH):.0f}% 이내": d52 >= NEAR_HIGH,
+        "② 20일평균 거래대금 30억 이상": avg_value >= MIN_TRADING_VALUE,
+        "③ MA5 > MA20 (단기추세)": ma5 > ma20,
     }
-    must_pass = all(conds.values())
-
     return {
-        "종목명": name or ticker,
-        "현재가": float(today["Close"]),
-        "점수": score,
-        "must_pass": must_pass,
-        "조건": conds,
+        "종목명": name or ticker, "현재가": c,
+        "통과": all(conds.values()), "조건": conds,
         "세부": {
-            "MA20": f"{ma20_now:,.0f}",
-            "MA60": f"{ma60_now:,.0f}",
-            "풀백": f"{pullback:.1f}%",
-            "거래량비": f"{vol_ratio:.2f}배",
-            "종가위치": f"{cl:.2f}",
-            "20일수익": f"{ret_20:.1f}%",
-            "거래대금(20일평균)": f"{avg_value/100_000_000:.1f}억",
-            "주봉": "OK ✅" if w_ok else "미통과 ❌",
-            "MA5회복": "✅" if ma5_recov else "-",
-        }
+            "52주 최고가": f"{h52:,.0f}원",
+            "신고가 대비": f"{d52:+.2f}%",
+            "거래대금(20일)": f"{avg_value/100_000_000:,.0f}억",
+            "MA5": f"{ma5:,.0f}", "MA20": f"{ma20:,.0f}",
+        },
     }
-
-
-def run_full_scan():
-    """전체 스캔 (20~30분 소요)"""
-    start = (datetime.today() - timedelta(days=730)).strftime("%Y-%m-%d")
-    end   = datetime.today().strftime("%Y-%m-%d")
-
-    prog = st.progress(0, text="시장 상태 확인 중...")
-
-    # 시장 필터
-    kospi_ok = kosdaq_ok = False
-    try:
-        for code, attr in [("KS11", "kospi"), ("KQ11", "kosdaq")]:
-            mdf = fdr.DataReader(code, (datetime.today()-timedelta(days=60)).strftime("%Y-%m-%d"), end)
-            c   = float(mdf["Close"].iloc[-1])
-            m5  = float(mdf["Close"].rolling(5).mean().iloc[-1])
-            m20 = float(mdf["Close"].rolling(20).mean().iloc[-1])
-            ok  = c > m20 and m5 > m20
-            if attr == "kospi": kospi_ok = ok
-            else: kosdaq_ok = ok
-    except:
-        pass
-
-    if not kospi_ok and not kosdaq_ok:
-        prog.empty()
-        return None, "시장 필터 미통과 (KOSPI·KOSDAQ 모두 MA20 아래)"
-
-    prog.progress(5, text="종목 목록 수집 중...")
-    all_s = pd.concat([fdr.StockListing("KOSPI"), fdr.StockListing("KOSDAQ")], ignore_index=True)
-    filtered = all_s[(all_s["Marcap"] >= MARKET_CAP_MIN) & (all_s["Marcap"] <= MARKET_CAP_MAX)]
-    if not kospi_ok:
-        filtered = filtered[filtered.get("Market", "") != "KOSPI"]
-    if not kosdaq_ok:
-        filtered = filtered[filtered.get("Market", "") != "KOSDAQ"]
-
-    tickers  = filtered[["Code","Name"]].values.tolist()
-    total    = len(tickers)
-    all_ret20 = {}
-    results   = []
-
-    for i, (ticker, name) in enumerate(tickers):
-        pct = int(5 + (i / total) * 90)
-        if i % 50 == 0:
-            prog.progress(pct, text=f"스캔 중... {i}/{total}")
-        try:
-            df = fdr.DataReader(ticker, start, end)
-            if df.empty or len(df) < 65: continue
-            df.index = pd.to_datetime(df.index)
-            ret20 = (float(df["Close"].iloc[-1]) - float(df["Close"].iloc[-21])) / float(df["Close"].iloc[-21]) * 100
-            all_ret20[ticker] = ret20
-            res = analyze_stock(ticker, name)
-            if res and res["must_pass"] and res["점수"] >= MIN_SCORE:
-                res["ret20"] = ret20
-                results.append(res)
-        except:
-            continue
-
-    if all_ret20:
-        thr = np.percentile(list(all_ret20.values()), 80)
-        results = [r for r in results if r.get("ret20", 0) >= thr]
-
-    results = sorted(results, key=lambda x: x["점수"], reverse=True)[:10]
-    prog.progress(100, text="완료!")
-    prog.empty()
-    return results, f"KOSPI {'✅' if kospi_ok else '❌'} / KOSDAQ {'✅' if kosdaq_ok else '❌'}"
 
 
 # ─────────────────────────────────────────
 # UI
 # ─────────────────────────────────────────
-st.title("📈 주식봇 v13.2")
-st.caption("추세+눌림목+거래량+주봉 전략 | 백테스트 승률 71.6% | 평균수익 +16.26%")
+st.title("📈 주식봇 v14 — 52주 신고가 스윙")
+st.caption(f"코스피>120일선 국면 + 신고가 -5%이내 + 거래대금30억 + MA5>MA20 | {HOLD_DAYS}일 보유·-8%손절·{SLOTS}슬롯 | 5년 백테스트 전 연도 플러스")
 
-tab1, tab2, tab3 = st.tabs(["🏆 추천주", "📅 히스토리", "🔍 종목 분석"])
+tab1, tab2, tab3 = st.tabs(["🏆 오늘의 후보", "💼 포트폴리오 & 히스토리", "🔍 종목 분석"])
 
-# ── 탭1: 추천주 ───────────────────────────
+# ── 탭1: 오늘의 후보 ─────────────────────
 with tab1:
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        st.subheader("오늘의 스윙 후보")
-
-    # 저장된 결과 불러오기
-    if os.path.exists("candidates.json"):
-        with open("candidates.json", encoding="utf-8") as f:
+    cpath = os.path.join(BASE, "candidates.json")
+    if os.path.exists(cpath):
+        with open(cpath, encoding="utf-8") as f:
             saved = json.load(f)
-        with col2:
-            st.caption(f"마지막 업데이트: {saved.get('updated','?')}")
-
-        market_info = saved.get("market", "")
-        kospi_ok = saved.get("kospi_ok", False)
-        kosdaq_ok = saved.get("kosdaq_ok", False)
-        st.info(f"시장: {market_info} | KOSPI {'✅' if kospi_ok else '❌'} KOSDAQ {'✅' if kosdaq_ok else '❌'}")
-
-        cands = saved.get("candidates", [])
-        if cands:
-            rows = []
-            for r in cands:
-                d = r.get("detail", {})
-                rows.append({
-                    "종목명": r["종목명"],
-                    "점수": f"{r['점수']}점",
-                    "현재가": f"{r['현재가']:,.0f}원",
-                    "목표가": f"{r['목표가']:,.0f}원",
-                    "손절가": f"{r['손절가']:,.0f}원",
-                    "풀백": d.get("눌림폭", "-"),
-                    "거래량": d.get("거래량", "-"),
-                    "주봉": d.get("주봉", "-"),
-                })
-            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+        if saved.get("format") == "v14":
+            st.caption(f"마지막 봇 실행: {saved.get('updated','?')}")
+            if saved.get("regime_on"):
+                st.success(f"🟢 {saved.get('regime_msg','')}")
+            else:
+                st.warning(f"🟡 {saved.get('regime_msg','')} — 약세장 현금 대기")
+            cands = saved.get("candidates", [])
+            newset = set(saved.get("new_entries", []))
+            if cands:
+                rows = [{
+                    "매수": "🎯" if c["code"] in newset else "",
+                    "종목명": c["name"], "코드": c["code"],
+                    "현재가": f"{c['close']:,.0f}원",
+                    "신고가 대비": f"{c['d52']:+.1f}%",
+                    "거래대금": f"{c['avg_value_억']:,.0f}억",
+                } for c in cands]
+                st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+                st.caption("🎯 = 봇이 오늘 매수한 종목 (가상 포트폴리오 기준) · 시가 갭 +2% 이상이면 매수 보류")
+            else:
+                st.info("조건 통과 후보 없음")
         else:
-            st.warning("오늘은 조건 통과 종목 없음")
+            st.info("이전 버전(v13) 결과 파일입니다. 내일 아침 봇 실행 후 v14 형식으로 갱신됩니다.")
     else:
-        st.info("아직 스캔 결과가 없어요. 아래 버튼으로 지금 스캔하거나 내일 아침 7:10 자동 업데이트를 기다려주세요.")
+        st.info("아직 스캔 결과가 없어요. 매일 아침 7:10 자동 업데이트됩니다.")
 
     st.divider()
-    st.caption("⚠️ 지금 스캔은 20~30분 걸려요. 매일 아침 7:10에 자동으로 업데이트됩니다.")
-    if st.button("🔄 지금 스캔하기", type="primary"):
-        with st.spinner("스캔 중... (20~30분 소요)"):
-            results, market_msg = run_full_scan()
-        if results is None:
-            st.error(f"❌ {market_msg}")
-        elif not results:
-            st.warning(f"시장: {market_msg}\n\n조건 통과 종목 없음")
+    # 수동 국면 체크 (가벼움)
+    if st.button("📡 지금 국면 확인 (몇 초)"):
+        on, c, ma = check_regime()
+        if on is None:
+            st.error("코스피 데이터 조회 실패")
+        elif on:
+            st.success(f"🟢 코스피 {c:,.0f} > 120일선 {ma:,.0f} — 매매 가능 국면")
         else:
-            st.success(f"✅ {market_msg} | {len(results)}개 후보 발견")
+            st.warning(f"🟡 코스피 {c:,.0f} < 120일선 {ma:,.0f} — 현금 대기 국면")
+
+
+# ── 탭2: 포트폴리오 & 히스토리 ───────────
+with tab2:
+    hpath = os.path.join(BASE, "history.json")
+    if not os.path.exists(hpath):
+        st.info("아직 기록이 없어요. 봇이 매일 아침 자동으로 쌓아요.")
+    else:
+        with open(hpath, encoding="utf-8") as f:
+            hist = json.load(f)
+
+        if isinstance(hist, list):
+            st.warning("이전 버전(v13) 히스토리입니다. 내일 아침 봇 실행 시 v14 형식으로 자동 전환됩니다.")
+            hist = {"positions": [], "closed": [], "legacy": hist}
+
+        positions = hist.get("positions", [])
+        closed    = hist.get("closed", [])
+
+        # ── 요약 카드 ──
+        if closed:
+            rets = [c["ret_pct"] for c in closed if c.get("ret_pct") is not None]
+            wins = [x for x in rets if x > 0]
+            cols = st.columns(4)
+            metrics = [
+                ("완료 거래", f"{len(closed)}건", "손절+만기 청산"),
+                ("승률", f"{len(wins)/len(rets)*100:.0f}%" if rets else "-", f"수익 {len(wins)} / 전체 {len(rets)}"),
+                ("평균 수익률", f"{np.mean(rets):+.2f}%" if rets else "-", "거래당 실현"),
+                ("누적 합산", f"{np.sum(rets):+.1f}%" if rets else "-", "단순 합산 (슬롯비중 미반영)"),
+            ]
+            for col, (t, v, s) in zip(cols, metrics):
+                neg = v.startswith("-")
+                col.markdown(f"""<div style="background:#1a1a2e;border:1px solid #2d3748;border-radius:12px;padding:16px;text-align:center;">
+                  <div style="color:#a0aec0;font-size:12px;margin-bottom:6px;">{t}</div>
+                  <div style="font-size:24px;font-weight:700;color:{'#ff1744' if neg else '#00c853'};">{v}</div>
+                  <div style="color:#4a5568;font-size:11px;margin-top:4px;">{s}</div></div>""", unsafe_allow_html=True)
+            st.markdown("<br>", unsafe_allow_html=True)
+
+        # ── 보유 포지션 ──
+        st.subheader(f"💼 보유 중 ({len(positions)}/{SLOTS})")
+        if positions:
             rows = []
-            for r in results:
+            for p in positions:
+                pending = p.get("entry_price") is None
                 rows.append({
-                    "종목명": r["종목명"],
-                    "점수": f"{r['점수']}점",
-                    "현재가": f"{r['현재가']:,.0f}원",
-                    "풀백": r["세부"].get("풀백", "-"),
-                    "거래량비": r["세부"].get("거래량비", "-"),
-                    "20일수익": r["세부"].get("20일수익", "-"),
-                    "주봉": r["세부"].get("주봉", "-"),
+                    "종목명": p["name"], "코드": p["code"],
+                    "진입일": p["entry_date"],
+                    "진입가": "체결대기" if pending else f"{p['entry_price']:,.0f}원",
+                    "현재가": f"{p.get('current',0):,.0f}원" if p.get("current") else "-",
+                    "수익률": f"{p['ret_pct']:+.1f}%" if p.get("ret_pct") is not None else "-",
+                    "보유일": f"{p.get('days_held','-')}/{HOLD_DAYS}",
+                    "손절가": f"{p['stop_price']:,.0f}원" if p.get("stop_price") else "-",
                 })
             st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-
-
-# ── 수익률 판정 함수 ──────────────────────
-def evaluate_trade(ticker, rec_date_str, 추천가, 목표가, 손절가):
-    """
-    시나리오 A: 손절 가정 (손절가 터치 시 손절, 목표 터치 시 익절, 10일 종가)
-    시나리오 B: 10일 보유 (무조건 10거래일 후 종가)
-    현재가는 항상 오늘 기준
-    반환: (현재가, 시나리오A수익률, 시나리오A상태, 시나리오B수익률, 시나리오B상태)
-    """
-    try:
-        start = (pd.Timestamp(rec_date_str) + timedelta(days=1)).strftime("%Y-%m-%d")
-        end   = datetime.today().strftime("%Y-%m-%d")
-        df = fdr.DataReader(ticker, start, end)
-        if df is None or df.empty:
-            return None, None, "-", None, "-"
-        df = normalize_df(df)
-        df.index = pd.to_datetime(df.index)
-        days = df.index.tolist()
-        current = float(df.iloc[-1]["Close"])
-
-        # ── 시나리오 A: 손절/익절 가정 ──
-        a_price, a_status = None, None
-        for dt in days[:10]:
-            row = df.loc[dt]
-            if float(row["High"]) >= 목표가:
-                a_price, a_status = 목표가, "🎯 목표달성"
-                break
-            if float(row["Low"]) <= 손절가:
-                a_price, a_status = 손절가, "🛑 손절"
-                break
-        if a_status is None:
-            if len(days) >= 10:
-                a_price  = float(df.iloc[9]["Close"])
-                a_status = "📋 10일종료"
-            else:
-                a_price  = current
-                a_status = "🔵 보유중"
-        a_pct = (a_price - 추천가) / 추천가 * 100
-
-        # ── 시나리오 B: 10일 보유 ──
-        if len(days) >= 10:
-            b_price  = float(df.iloc[9]["Close"])
-            b_status = "📋 10일종료"
         else:
-            b_price  = current
-            b_status = "🔵 보유중"
-        b_pct = (b_price - 추천가) / 추천가 * 100
+            st.info("보유 종목 없음 (약세장 대기 또는 시작 전)")
 
-        return current, a_pct, a_status, b_pct, b_status
-    except:
-        return None, None, "-", None, "-"
-
-
-def pct_color(pct):
-    if pct is None: return "#888"
-    return "#00c853" if pct >= 0 else "#ff1744"
-
-
-def pct_str(pct):
-    if pct is None: return "-"
-    return f"{pct:+.1f}%"
-
-
-# ── 탭2: 히스토리 ────────────────────────
-with tab2:
-    hist_path = os.path.join(os.path.dirname(__file__), "history.json")
-    if not os.path.exists(hist_path):
-        st.info("아직 히스토리가 없어요. 매일 아침 7:10 자동으로 쌓여요.")
-    else:
-        with open(hist_path, encoding="utf-8") as f:
-            history = json.load(f)
-
-        if not history:
-            st.info("추천 기록이 없어요.")
+        # ── 청산 기록 ──
+        st.subheader("📤 청산 기록")
+        if closed:
+            rows = [{
+                "종목명": c["name"], "코드": c["code"],
+                "진입일": c["entry_date"], "청산일": c["exit_date"],
+                "진입가": f"{c['entry_price']:,.0f}원", "청산가": f"{c['exit_price']:,.0f}원",
+                "수익률": f"{c['ret_pct']:+.2f}%", "사유": c["reason"],
+            } for c in sorted(closed, key=lambda x: x["exit_date"], reverse=True)]
+            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
         else:
-            history_sorted = sorted(history, key=lambda x: x["date"], reverse=True)
+            st.info("아직 청산된 거래가 없어요.")
 
-            # 전체 데이터 수집
-            all_items = [(entry["date"], c) for entry in history_sorted for c in entry.get("candidates", [])]
-
-            with st.spinner("수익률 계산 중..."):
-                results = {}
-                for date_str, c in all_items:
-                    key = (date_str, c["종목코드"])
-                    results[key] = evaluate_trade(
-                        c["종목코드"], date_str, c["추천가"], c["목표가"], c["손절가"]
-                    )
-
-            # ── 상단 요약 카드 ──
-            completed_a = [(k, v) for k, v in results.items() if v[2] in ("🎯 목표달성", "🛑 손절", "📋 10일종료")]
-            if completed_a:
-                wins_a = [v for k, v in completed_a if v[2] == "🎯 목표달성"]
-                wr_a   = len(wins_a) / len(completed_a) * 100
-                avg_a  = np.mean([v[1] for k, v in completed_a if v[1] is not None])
-                avg_b  = np.mean([v[3] for k, v in results.items() if v[3] is not None and v[4] == "📋 10일종료"])
-
-                st.markdown("""
-<style>
-.summary-card {
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-    border: 1px solid #0f3460;
-    border-radius: 16px;
-    padding: 24px 32px;
-    margin-bottom: 24px;
-}
-.summary-title { color: #a0aec0; font-size: 13px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
-.summary-value { font-size: 28px; font-weight: 700; }
-.summary-sub   { color: #718096; font-size: 12px; margin-top: 2px; }
-.stock-card {
-    background: #1a1a2e;
-    border: 1px solid #2d3748;
-    border-radius: 12px;
-    padding: 16px 20px;
-    margin-bottom: 10px;
-}
-.stock-name { font-size: 16px; font-weight: 700; color: #e2e8f0; }
-.stock-code { font-size: 12px; color: #718096; margin-left: 8px; }
-.tag { display: inline-block; border-radius: 6px; padding: 2px 10px; font-size: 12px; font-weight: 600; }
-</style>
-""", unsafe_allow_html=True)
-
-                cols = st.columns(4)
-                metrics = [
-                    ("총 추천", f"{len(all_items)}건", "누적 추천 종목 수"),
-                    ("완료", f"{len(completed_a)}건", "10일 경과 or 손절/익절"),
-                    ("손절가정 승률", f"{wr_a:.0f}%", f"목표달성 {len(wins_a)}건 / 전체 {len(completed_a)}건"),
-                    ("10일보유 평균", f"{avg_b:+.1f}%", "10거래일 보유 시 평균 수익률"),
-                ]
-                for col, (title, val, sub) in zip(cols, metrics):
-                    color = "#00c853" if "%" in val and float(val.replace("%","").replace("+","")) >= 0 else "#ff1744" if "%" in val else "#63b3ed"
-                    col.markdown(f"""
-<div style="background:#1a1a2e;border:1px solid #2d3748;border-radius:12px;padding:16px 20px;text-align:center;">
-  <div style="color:#a0aec0;font-size:12px;font-weight:600;letter-spacing:1px;margin-bottom:6px;">{title}</div>
-  <div style="font-size:26px;font-weight:700;color:{color};">{val}</div>
-  <div style="color:#4a5568;font-size:11px;margin-top:4px;">{sub}</div>
-</div>""", unsafe_allow_html=True)
-
-            st.markdown("<br>", unsafe_allow_html=True)
-
-            # ── 날짜별 카드 ──
-            for entry in history_sorted:
-                date_str = entry["date"]
-                cands    = entry.get("candidates", [])
-                if not cands: continue
-
-                st.markdown(f"""
-<div style="display:flex;align-items:center;margin:20px 0 10px 0;">
-  <div style="background:#0f3460;border-radius:8px;padding:4px 14px;font-size:14px;font-weight:700;color:#63b3ed;">📅 {date_str}</div>
-  <div style="color:#4a5568;font-size:13px;margin-left:10px;">{len(cands)}개 추천</div>
-</div>""", unsafe_allow_html=True)
-
-                for c in cands:
-                    key = (date_str, c["종목코드"])
-                    cur, a_pct, a_status, b_pct, b_status = results.get(key, (None,None,"-",None,"-"))
-                    추천가 = c["추천가"]
-                    cur_pct = (cur - 추천가) / 추천가 * 100 if cur else None
-
-                    a_col = pct_color(a_pct)
-                    b_col = pct_color(b_pct)
-                    c_col = pct_color(cur_pct)
-
-                    st.markdown(f"""
-<div class="stock-card">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-    <div>
-      <span class="stock-name">{c['종목명']}</span>
-      <span class="stock-code">{c['종목코드']}</span>
-      <span style="margin-left:8px;background:#2d3748;border-radius:4px;padding:2px 8px;font-size:11px;color:#a0aec0;">{c['점수']}점</span>
-    </div>
-    <div style="text-align:right;">
-      <div style="color:#718096;font-size:11px;">현재가</div>
-      <div style="font-size:18px;font-weight:700;color:{c_col};">{f"{cur:,.0f}원" if cur else "-"} <span style="font-size:13px;">({pct_str(cur_pct)})</span></div>
-    </div>
-  </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:8px;">
-    <div style="background:#0d1117;border-radius:8px;padding:10px 14px;">
-      <div style="color:#718096;font-size:11px;margin-bottom:4px;">추천가 / 목표 / 손절</div>
-      <div style="color:#e2e8f0;font-size:13px;">{추천가:,.0f}원</div>
-      <div style="color:#00c853;font-size:12px;">▲ {c['목표가']:,.0f}원 (+10%)</div>
-      <div style="color:#ff1744;font-size:12px;">▼ {c['손절가']:,.0f}원 (-4%)</div>
-    </div>
-    <div style="background:#0d1117;border-radius:8px;padding:10px 14px;">
-      <div style="color:#718096;font-size:11px;margin-bottom:4px;">🛑 손절 가정</div>
-      <div style="font-size:20px;font-weight:700;color:{a_col};">{pct_str(a_pct)}</div>
-      <div style="color:#4a5568;font-size:12px;margin-top:2px;">{a_status}</div>
-    </div>
-    <div style="background:#0d1117;border-radius:8px;padding:10px 14px;">
-      <div style="color:#718096;font-size:11px;margin-bottom:4px;">📅 10일 보유</div>
-      <div style="font-size:20px;font-weight:700;color:{b_col};">{pct_str(b_pct)}</div>
-      <div style="color:#4a5568;font-size:12px;margin-top:2px;">{b_status}</div>
-    </div>
-  </div>
-</div>""", unsafe_allow_html=True)
-
-            st.markdown("<br>", unsafe_allow_html=True)
+        # ── 구버전 기록 ──
+        legacy = hist.get("legacy", [])
+        if legacy:
+            with st.expander(f"📦 이전 전략(v13) 추천 기록 {sum(len(e.get('candidates',[])) for e in legacy)}건 보기"):
+                for e in sorted(legacy, key=lambda x: x.get("date",""), reverse=True):
+                    names = ", ".join(c["종목명"] for c in e.get("candidates", []))
+                    st.markdown(f"- **{e.get('date')}**: {names}")
 
 
-# ── 탭3: 종목 분석 ────────────────────────
+# ── 탭3: 종목 분석 ───────────────────────
 with tab3:
-    st.subheader("종목 v13.2 조건 체크")
-
+    st.subheader("종목 v14 조건 체크")
     stock_list = load_stock_list()
-    stock_options = {f"{s['name']} ({s['code']})": s['code'] for s in stock_list}
+    options = [f"{s['name']} ({s['code']})" for s in stock_list] if stock_list else []
 
-    search_query = st.text_input("종목명 검색", placeholder="예: SK, 삼성, 카카오...")
+    sel = st.selectbox("종목 검색", options, index=None, placeholder="종목명 입력...") if options else None
+    manual = st.text_input("또는 종목코드 직접 입력", placeholder="예: 005930")
 
-    selected_label = None
-    if search_query:
-        matches = [label for label in stock_options if search_query.lower() in label.lower()][:20]
-        if matches:
-            selected_label = st.selectbox("종목 선택", matches)
-        else:
-            st.warning("검색 결과 없음")
+    ticker, name = None, ""
+    if sel:
+        name, code = sel.rsplit(" (", 1)
+        ticker = code.rstrip(")")
+    elif manual.strip():
+        ticker = manual.strip()
 
-    run_btn = st.button("분석", type="primary", disabled=(selected_label is None))
-
-    if run_btn and selected_label:
-        ticker = stock_options[selected_label]
-        name   = selected_label.split(" (")[0]
-        with st.spinner("데이터 수집 중..."):
+    if ticker and st.button("분석하기", type="primary"):
+        with st.spinner("분석 중..."):
             try:
-                result = analyze_stock(ticker, name)
-
-                if result is None:
-                    st.error("데이터를 불러올 수 없어요. (데이터 부족 또는 상장 기간 짧은 종목)")
+                res = analyze_stock_v14(ticker, name)
+                if res is None:
+                    st.error("데이터 부족 또는 조회 실패 (상장 1년 미만 종목은 분석 불가)")
                 else:
-                    # 헤더
-                    verdict_color = "🟢" if result["must_pass"] else "🔴"
-                    verdict_text  = "매수 후보 ✅" if result["must_pass"] else "조건 미충족 ❌"
-                    st.markdown(f"### {verdict_color} {result['종목명']} ({ticker})")
-                    c1, c2, c3 = st.columns(3)
-                    c1.metric("현재가", f"{result['현재가']:,.0f}원")
-                    c2.metric("스코어", f"{result['점수']}점")
-                    c3.metric("결론", verdict_text)
-
-                    # 조건 체크표
-                    st.divider()
-                    st.markdown("**📋 조건 체크**")
-                    for cond, ok in result["조건"].items():
-                        icon = "✅" if ok else "❌"
-                        st.markdown(f"{icon} {cond}")
-
-                    # 세부 수치
-                    st.divider()
-                    st.markdown("**📊 세부 수치**")
-                    detail_df = pd.DataFrame([result["세부"]]).T.reset_index()
-                    detail_df.columns = ["항목", "값"]
-                    st.dataframe(detail_df, use_container_width=True, hide_index=True)
-
-                    # 스코어 설명
-                    st.divider()
-                    score = result["점수"]
-                    if result["must_pass"] and score >= 90:
-                        st.success(f"🔥 {score}점 — 강한 신호! 백테스트 기준 이 구간 승률 73.7%")
-                    elif result["must_pass"] and score >= 70:
-                        st.success(f"✅ {score}점 — 매수 후보. 승률 70~72% 구간")
+                    on, kc, kma = check_regime()
+                    st.markdown(f"### {res['종목명']} — 현재가 {res['현재가']:,.0f}원")
+                    if res["통과"] and on:
+                        st.success("✅ v14 매수 조건 전부 통과 + 시장 국면 OK")
+                    elif res["통과"]:
+                        st.warning("종목 조건은 통과했으나 🟡 시장이 약세 국면 (코스피<120일선) — 매수 대기")
                     else:
-                        fails = [k for k, v in result["조건"].items() if not v]
-                        st.error(f"❌ 조건 미충족 ({len(fails)}개 탈락)")
-                        for f in fails:
-                            st.markdown(f"  - {f}")
-
+                        st.error("❌ 조건 미통과")
+                    for k, v in res["조건"].items():
+                        st.markdown(f"- {'✅' if v else '❌'} {k}")
+                    st.markdown("**세부 지표**")
+                    st.table(pd.DataFrame([res["세부"]]).T.rename(columns={0: "값"}))
             except Exception as e:
                 import traceback
                 st.error(f"오류: {e}")
                 st.code(traceback.format_exc())
 
     st.divider()
-    with st.expander("📖 v13.2 전략 조건 보기"):
-        st.markdown("""
-**매수 필수 조건 (전부 충족해야 함)**
-1. 주봉 종가 > 주봉 MA10 + 13주 수익률 > 0 + 52주 고점 -40% 이내
-2. 종가 > MA20 > MA60
-3. 최근 7일 고점 대비 -0.5% ~ -8% 풀백
-4. 거래량비 1.0 ~ 2.5배 (5일 평균 대비)
-5. 최근 거래량 감소 중
-6. 음봉+거래량 폭발 없음
-7. 종가위치 0.40 ~ 0.85
-8. 20일 평균 거래대금 30억 이상
+    with st.expander("📖 v14 전략 전문 보기"):
+        st.markdown(f"""
+**국면 게이트** — 코스피 종가 > 120일선일 때만 매매, 아니면 전량 현금
 
-**스코어 (70점 이상 + RS 상위 20% = 최종 후보)**
-- 트렌드 30점 / 상대강도 20점 / 눌림목 20점 / 거래량 20점 / MA5회복 10점 / 주봉보너스 5점
+**매수 조건 (전부 충족)**
+1. 시가총액 1,000억 ~ 5조
+2. 20일 평균 거래대금 30억 이상
+3. **52주 최고가 대비 -5% 이내** (핵심 팩터)
+4. MA5 > MA20 (단기추세 보강)
+5. 진입일 시가가 전일종가 +2% 이상 갭업이면 매수 취소
 
-**매매 원칙**
-- 손절: -4% / 보유: 최대 10거래일 / 비중: 자금의 20% / 최대 5종목
+**청산 (조기 익절 없음 — 승자 태우기)**
+- {HOLD_DAYS}거래일 만기 매도 or -8% 손절
+
+**자금 운용** — 최대 {SLOTS}종목 균등 분산 (종목당 자금의 {100//SLOTS}%)
+
+**검증 근거 (5년 백테스트, 2021.7~2026.7, 수수료 0.3% 반영)**
+- 30개 기술 팩터 전수조사 중 유일하게 5년 전 연도에서 무작위 대비 우위를 유지한 팩터
+- 학계 검증된 '52주 신고가 모멘텀' 이상현상과 일치 (George & Hwang 2004)
+- 완전분산 기준 CAGR +10~18%, MDD -19~-31%, **전 연도 플러스** (2022 +9%, 2024 +12%)
+- 현실 기대치: 12슬롯 기준 **CAGR 9~15%** (생존편향·미래 불확실성 감안해 보수적으로)
+
+⚠️ 백테스트는 미래를 보장하지 않습니다. 실계좌 전 모의운용 권장.
         """)
