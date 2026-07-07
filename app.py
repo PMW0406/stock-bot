@@ -24,6 +24,7 @@ NEAR_HIGH_TOP     = -1.0
 PREM_MIN, PREM_MAX   = 4.0, 8.0
 RET20_MIN, RET20_MAX = 10.0, 25.0
 VOL_SPIKE_MAX     = 4.0
+FRESH_DAYS        = 5
 GAP_MAX           = 2.0
 MARKET_CAP_MIN    = 100_000_000_000
 MARKET_CAP_MAX    = 5_000_000_000_000
@@ -111,6 +112,7 @@ def run_live_scan(progress):
             if not (RET20_MIN <= ret20 < RET20_MAX): continue
             vol5 = float(vol.iloc[-6:-1].mean())
             if vol5 > 0 and float(vol.iloc[-1]) / vol5 >= VOL_SPIKE_MAX: continue
+            if float(high.iloc[-FRESH_DAYS:].max()) < h52 * 0.9999: continue
             results.append({
                 "code": tk, "name": nm, "close": c,
                 "d52": round(d52, 2), "avg_value_억": round(avg_value / 100_000_000, 1),
@@ -148,6 +150,7 @@ def analyze_stock_v14(ticker, name=""):
         "③ MA5/MA20 이격 +4~8% (추세형성)": PREM_MIN <= prem < PREM_MAX,
         "④ 20일 수익률 +10~25% (모멘텀 밴드)": RET20_MIN <= ret20 < RET20_MAX,
         "⑤ 거래량 폭증(5일평균 4배↑) 아님": not (vr >= VOL_SPIKE_MAX),
+        "⑥ 신고가가 최근 5일 내 갱신 (신선도)": float(high.iloc[-FRESH_DAYS:].max()) >= h52 * 0.9999,
     }
     return {
         "종목명": name or ticker, "현재가": c,
@@ -165,7 +168,7 @@ def analyze_stock_v14(ticker, name=""):
 # UI
 # ─────────────────────────────────────────
 st.title("📈 주식봇 v14 — 52주 신고가 스윙")
-st.caption(f"v14.4 밴드정밀화: 신고가 -5~-1% + 이격4~8% + 모멘텀10~25% | {HOLD_DAYS}일·종가-10%손절·{SLOTS}슬롯 + B트랙(초대형회귀) | 5년 전 연도·전 슬롯 플러스")
+st.caption(f"v14.5: 신선한(5일내) 신고가 -5~-1% + 이격4~8% + 모멘텀10~25% | {HOLD_DAYS}일·종가-10%손절·{SLOTS}슬롯 + B트랙(초대형회귀) | 5년 전 연도·전 슬롯 플러스")
 
 tab1, tab2, tab3 = st.tabs(["🏆 오늘의 후보", "💼 포트폴리오 & 히스토리", "🔍 종목 분석"])
 
@@ -452,6 +455,7 @@ with tab3:
 3. **MA5/MA20 이격 +4~8%** (추세 미형성·과열 제외)
 4. **20일 수익률 +10~25%** (모멘텀 스윗스팟)
 5. 당일 거래량이 5일평균 4배 이상 폭증한 날은 제외 (0/5년 회피밴드)
+6. **52주 최고가가 최근 5거래일 내 갱신**된 신선한 고점만 (6일+ 묵은 고점은 엣지 0 — v14.5)
 5. 진입일 시가 갭이 **+2% 이상(추격금지) 또는 -3% 이하(급락출발)** 면 매수 취소
 
 **서킷브레이커 (손절 폭포 방어)**
