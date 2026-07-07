@@ -179,40 +179,79 @@ with tab1:
         with open(cpath, encoding="utf-8") as f:
             saved = json.load(f)
         if saved.get("format") == "v14":
-            st.caption(f"마지막 봇 실행: {saved.get('updated','?')}")
+            st.markdown("""
+<style>
+.cand-card { background:#1a1a2e; border:1px solid #2d3748; border-radius:12px; padding:14px 18px; margin-bottom:10px; }
+.cand-card.buy { border:1px solid #00c853; background:linear-gradient(135deg,#16281c 0%,#1a1a2e 60%); }
+.cand-card.buyb { border:1px solid #2d6cdf; background:linear-gradient(135deg,#14223a 0%,#1a1a2e 60%); }
+.cand-name { font-size:16px; font-weight:700; color:#e2e8f0; }
+.cand-code { font-size:11px; color:#718096; margin-left:6px; }
+.pill { display:inline-block; border-radius:6px; padding:2px 9px; font-size:11px; font-weight:700; margin-left:6px; }
+.metric { display:inline-block; background:#0d1117; border-radius:6px; padding:4px 10px; margin:6px 6px 0 0; font-size:12px; color:#9fb0c3; }
+.metric b { color:#e2e8f0; }
+</style>""", unsafe_allow_html=True)
+            # 국면 배너
+            rg = saved.get("regime_msg", "")
             if saved.get("regime_on"):
-                st.success(f"🟢 {saved.get('regime_msg','')}")
+                st.markdown(f"""<div style="background:linear-gradient(135deg,#0d2818 0%,#16213e 100%);border:1px solid #00c853;border-radius:14px;padding:14px 20px;margin-bottom:14px;">
+                  <span style="font-size:15px;font-weight:700;color:#4ade80;">🟢 {rg}</span>
+                  <div style="color:#718096;font-size:12px;margin-top:4px;">마지막 봇 실행: {saved.get('updated','?')}</div></div>""", unsafe_allow_html=True)
             else:
-                st.warning(f"🟡 {saved.get('regime_msg','')} — 약세장 현금 대기")
+                st.markdown(f"""<div style="background:linear-gradient(135deg,#2a2010 0%,#16213e 100%);border:1px solid #ff9800;border-radius:14px;padding:14px 20px;margin-bottom:14px;">
+                  <span style="font-size:15px;font-weight:700;color:#ffb74d;">🟡 {rg} — 현금 대기</span>
+                  <div style="color:#718096;font-size:12px;margin-top:4px;">마지막 봇 실행: {saved.get('updated','?')}</div></div>""", unsafe_allow_html=True)
+
+            # A트랙 카드
+            st.markdown("""<div style="display:flex;align-items:center;margin:4px 0 10px 0;">
+              <div style="background:#0f3460;border-radius:8px;padding:4px 14px;font-size:14px;font-weight:700;color:#63b3ed;">🏆 A트랙 — 신선한 신고가 스윙</div>
+              <div style="color:#4a5568;font-size:12px;margin-left:10px;">15일 보유 · 종가 -10% 손절</div></div>""", unsafe_allow_html=True)
             cands = saved.get("candidates", [])
             newset = set(saved.get("new_entries", []))
             if cands:
-                rows = [{
-                    "매수": "🎯" if c["code"] in newset else "",
-                    "종목명": c["name"], "코드": c["code"],
-                    "현재가": f"{c['close']:,.0f}원",
-                    "신고가 대비": f"{c['d52']:+.1f}%",
-                    "거래대금": f"{c['avg_value_억']:,.0f}억",
-                } for c in cands]
-                st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-                st.caption("🎯 = 봇이 오늘 매수한 종목 (가상 포트폴리오 기준) · 시가 갭 +2% 이상이면 매수 보류")
+                for c in cands:
+                    isbuy = c["code"] in newset
+                    buy_pill = '<span class="pill" style="background:#00c853;color:#08210f;">🎯 오늘 매수</span>' if isbuy else ''
+                    earn_pill = ''
+                    if c.get("earn") == "GOOD":
+                        yy = c.get("earn_yoy")
+                        earn_pill = f'<span class="pill" style="background:#3b2a06;color:#ffc107;">🚀 실적 {"+%.0f%%" % yy if yy is not None else "흑자전환"} · 비중1.5x</span>'
+                    st.markdown(
+                        f'<div class="cand-card{" buy" if isbuy else ""}">'
+                        f'<div style="display:flex;justify-content:space-between;align-items:center;">'
+                        f'<div><span class="cand-name">{c["name"]}</span><span class="cand-code">{c["code"]}</span>{buy_pill}{earn_pill}</div>'
+                        f'<div style="font-size:17px;font-weight:700;color:#e2e8f0;">{c["close"]:,.0f}<span style="font-size:12px;color:#718096;">원</span></div>'
+                        f'</div>'
+                        f'<div><span class="metric">52주고가 <b>{c["d52"]:+.1f}%</b></span>'
+                        f'<span class="metric">거래대금 <b>{c["avg_value_억"]:,.0f}억</b></span>'
+                        f'<span class="metric">매수가 <b>내일 시가</b> (갭+2%↑ 보류)</span></div>'
+                        f'</div>', unsafe_allow_html=True)
             else:
-                st.info("A트랙(신고가) 조건 통과 후보 없음")
-            # B트랙 (초대형 회귀)
+                st.markdown("""<div class="cand-card" style="text-align:center;color:#718096;padding:22px;">
+                  오늘은 조건 통과 종목이 없습니다 — 신고가권이 마른 조정 구간엔 쉬는 것도 전략입니다 😌</div>""", unsafe_allow_html=True)
+
+            # B트랙 카드
             cands_b = saved.get("candidates_b", [])
             if cands_b:
-                st.markdown("**🔵 B트랙 — 초대형 과매도 회귀** (조정장 보조 · +3% 목표/10일 · 승률 74%)")
+                st.markdown("""<div style="display:flex;align-items:center;margin:18px 0 10px 0;">
+                  <div style="background:#123a5c;border-radius:8px;padding:4px 14px;font-size:14px;font-weight:700;color:#7cc7ff;">🔵 B트랙 — 초대형 과매도 회귀</div>
+                  <div style="color:#4a5568;font-size:12px;margin-left:10px;">+3% 지정가 익절 · 10일 · 승률 74%</div></div>""", unsafe_allow_html=True)
                 newb = set(saved.get("new_entries_b", []))
-                rows_b = [{
-                    "매수": "🔵" if c["code"] in newb else "",
-                    "종목명": c["name"], "코드": c["code"],
-                    "현재가": f"{c['close']:,.0f}원",
-                    "RSI(2)": c["rsi2"],
-                    "외인 20일수급": (f"{c['flow20']:+.1f}%" if c.get("flow20") is not None else "N/A"),
-                    "200일선 대비": f"{c['ma200_dist']:+.1f}%",
-                    "목표가(+3%)": f"{c['close']*1.03:,.0f}원",
-                } for c in cands_b]
-                st.dataframe(pd.DataFrame(rows_b), use_container_width=True, hide_index=True)
+                for c in cands_b:
+                    isbuy = c["code"] in newb
+                    buy_pill = '<span class="pill" style="background:#2d6cdf;color:#eaf3ff;">🔵 오늘 매수</span>' if isbuy else ''
+                    flow = f"{c['flow20']:+.1f}%" if c.get("flow20") is not None else "N/A"
+                    flow_col = "#4ade80" if (c.get("flow20") or 0) > 0 else "#ff8a80"
+                    st.markdown(
+                        f'<div class="cand-card{" buyb" if isbuy else ""}">'
+                        f'<div style="display:flex;justify-content:space-between;align-items:center;">'
+                        f'<div><span class="cand-name">{c["name"]}</span><span class="cand-code">{c["code"]}</span>{buy_pill}</div>'
+                        f'<div style="font-size:17px;font-weight:700;color:#e2e8f0;">{c["close"]:,.0f}<span style="font-size:12px;color:#718096;">원</span></div>'
+                        f'</div>'
+                        f'<div><span class="metric">RSI(2) <b>{c["rsi2"]}</b></span>'
+                        f'<span class="metric">외인 20일수급 <b style="color:{flow_col};">{flow}</b></span>'
+                        f'<span class="metric">200일선 <b>{c["ma200_dist"]:+.1f}%</b></span>'
+                        f'<span class="metric">목표 <b style="color:#4ade80;">{c["close"]*1.03:,.0f}원</b></span></div>'
+                        f'</div>', unsafe_allow_html=True)
         else:
             st.info("이전 버전(v13) 결과 파일입니다. 내일 아침 봇 실행 후 v14 형식으로 갱신됩니다.")
     else:
