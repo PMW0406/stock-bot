@@ -578,14 +578,15 @@ def build_email(regime_on, regime_msg, sp_ret, nq_ret, sox_ret, us_date,
 
 
 def send_email(subject, body):
+    recipients = [a.strip() for a in RECEIVE_EMAIL.split(",") if a.strip()]
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
     msg["From"]    = GMAIL_ADDRESS
-    msg["To"]      = RECEIVE_EMAIL
+    msg["To"]      = ", ".join(recipients)
     msg.attach(MIMEText(body, "html", "utf-8"))
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
         smtp.login(GMAIL_ADDRESS, GMAIL_APP_PW)
-        smtp.sendmail(GMAIL_ADDRESS, RECEIVE_EMAIL, msg.as_string())
+        smtp.sendmail(GMAIL_ADDRESS, recipients, msg.as_string())
 
 
 # ─────────────────────────────────────────
