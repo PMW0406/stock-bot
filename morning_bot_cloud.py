@@ -23,7 +23,12 @@ import FinanceDataReader as fdr
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+KST = timezone(timedelta(hours=9))
+def now_kst():
+    """GitHub Actions(UTC)에서도 한국 날짜 보장"""
+    return datetime.now(KST)
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -68,8 +73,8 @@ B_FLOW_AVOID      = -10.0               # 외인 20일 누적 순매도 ≤ 거�
 # ─────────────────────────────────────────
 def check_us_market():
     """미국 시장 현황 (참고용)"""
-    end   = datetime.today().strftime("%Y-%m-%d")
-    start = (datetime.today() - timedelta(days=7)).strftime("%Y-%m-%d")
+    end   = now_kst().strftime("%Y-%m-%d")
+    start = (now_kst() - timedelta(days=7)).strftime("%Y-%m-%d")
     try:
         sp  = yf.download("^GSPC", start=start, end=end, progress=False, auto_adjust=True)["Close"].squeeze().pct_change()
         nq  = yf.download("^IXIC", start=start, end=end, progress=False, auto_adjust=True)["Close"].squeeze().pct_change()
@@ -81,8 +86,8 @@ def check_us_market():
 
 def check_regime():
     """국면: 코스피 vs 120일선 + 히스테리시스(5일 연속 유지 시에만 전환 — 요동 방지)"""
-    end   = datetime.today().strftime("%Y-%m-%d")
-    start = (datetime.today() - timedelta(days=420)).strftime("%Y-%m-%d")
+    end   = now_kst().strftime("%Y-%m-%d")
+    start = (now_kst() - timedelta(days=420)).strftime("%Y-%m-%d")
     try:
         df = fdr.DataReader("KS11", start, end)
         close = df["Close"]
@@ -134,7 +139,7 @@ def save_history(h):
 
 def update_positions(hist):
     """보유 포지션 갱신: pending 체결확정/갭취소 → 손절 체크 → 만기 체크"""
-    today_str = datetime.today().strftime("%Y-%m-%d")
+    today_str = now_kst().strftime("%Y-%m-%d")
     kept, sell_alerts, cancels = [], [], []
 
     for p in hist["positions"]:
@@ -272,7 +277,7 @@ def get_candidates_b(exclude_codes):
     """트랙B 스캔: 초대형주(5조↑) + 200일선 위 + RSI2<10 과매도
     + 외인 20일 수급 필터/랭킹 (강매도 제외 · 매집 우선 — 2.9년 검증)"""
     print("트랙B(초대형 회귀) 스캔 중...")
-    start = (datetime.today() - timedelta(days=400)).strftime("%Y-%m-%d")
+    start = (now_kst() - timedelta(days=400)).strftime("%Y-%m-%d")
     all_s = pd.concat([fdr.StockListing("KOSPI"), fdr.StockListing("KOSDAQ")], ignore_index=True)
     mega  = all_s[all_s["Marcap"] >= B_MARCAP_MIN]
     name_map = dict(zip(mega["Code"], mega["Name"]))
@@ -324,7 +329,7 @@ def get_earnings_states(stock_codes):
         corps = {rev[c]: c for c in stock_codes if c in rev}   # corp→stock
         if not corps: return {}
         # 최신 보고서부터 역순으로 시도 (연도, 보고서코드)
-        today = datetime.today()
+        today = now_kst()
         tries = []
         for y in (today.year, today.year - 1):
             for rc in ("11014", "11012", "11013", "11011"):
@@ -368,7 +373,7 @@ def get_earnings_states(stock_codes):
 def get_candidates(exclude_codes):
     """v14 스캔: 52주 신고가 -5% 이내 + 거래대금 30억 + MA5>MA20"""
     print("종목 스캔 중...")
-    start = (datetime.today() - timedelta(days=400)).strftime("%Y-%m-%d")
+    start = (now_kst() - timedelta(days=400)).strftime("%Y-%m-%d")
 
     kospi  = fdr.StockListing("KOSPI");  kospi["market"]  = "KOSPI"
     kosdaq = fdr.StockListing("KOSDAQ"); kosdaq["market"] = "KOSDAQ"
@@ -431,7 +436,7 @@ def get_candidates(exclude_codes):
 def build_email(regime_on, regime_msg, sp_ret, nq_ret, sox_ret, us_date,
                 positions, sell_alerts, cancels, candidates, new_entries,
                 new_entries_b=None):
-    today = datetime.today().strftime("%Y-%m-%d")
+    today = now_kst().strftime("%Y-%m-%d")
     g = "#00c853"; r = "#ff1744"
 
     # 매도 알림
@@ -549,7 +554,7 @@ def send_email(subject, body):
 
 # ─────────────────────────────────────────
 def main():
-    today_str = datetime.today().strftime("%Y-%m-%d")
+    today_str = now_kst().strftime("%Y-%m-%d")
     print(f"\n{'='*44}\n주식봇 v14 실행: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n{'='*44}\n")
 
     sp_ret, nq_ret, sox_ret, us_date = check_us_market()
@@ -618,7 +623,7 @@ def main():
     with open("candidates.json", "w", encoding="utf-8") as f:
         json.dump({
             "format": "v14",
-            "updated": datetime.today().strftime("%Y-%m-%d %H:%M"),
+            "updated": now_kst().strftime("%Y-%m-%d %H:%M"),
             "regime_on": regime_on, "regime_msg": regime_msg,
             "candidates": candidates[:20],
             "new_entries": [c["code"] for c in new_entries],
