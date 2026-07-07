@@ -29,8 +29,24 @@ KST = timezone(timedelta(hours=9))
 def now_kst():
     """GitHub Actions(UTC)에서도 한국 날짜 보장"""
     return datetime.now(KST)
-import warnings
+import warnings, time
 warnings.filterwarnings("ignore")
+
+
+def get_listing():
+    """KOSPI+KOSDAQ 상장목록(Code,Name,Marcap). KRX 해외IP 차단 시 캐시 폴백."""
+    cache = "universe_cache.csv"
+    for attempt in range(3):
+        try:
+            df = pd.concat([fdr.StockListing("KOSPI"), fdr.StockListing("KOSDAQ")], ignore_index=True)
+            if len(df) > 1000:
+                df[["Code", "Name", "Marcap"]].to_csv(cache, index=False)
+                return df[["Code", "Name", "Marcap"]]
+        except Exception as e:
+            print(f"   상장목록 조회 실패 {attempt+1}/3: {str(e)[:60]}")
+            time.sleep(5)
+    print("   → KRX 차단: universe_cache.csv 폴백 사용")
+    return pd.read_csv(cache, dtype={"Code": str})
 
 GMAIL_ADDRESS     = os.environ["GMAIL_ADDRESS"]
 GMAIL_APP_PW      = os.environ["GMAIL_APP_PW"]
@@ -278,7 +294,7 @@ def get_candidates_b(exclude_codes):
     + 외인 20일 수급 필터/랭킹 (강매도 제외 · 매집 우선 — 2.9년 검증)"""
     print("트랙B(초대형 회귀) 스캔 중...")
     start = (now_kst() - timedelta(days=400)).strftime("%Y-%m-%d")
-    all_s = pd.concat([fdr.StockListing("KOSPI"), fdr.StockListing("KOSDAQ")], ignore_index=True)
+    all_s = get_listing()
     mega  = all_s[all_s["Marcap"] >= B_MARCAP_MIN]
     name_map = dict(zip(mega["Code"], mega["Name"]))
     results = []
@@ -375,9 +391,7 @@ def get_candidates(exclude_codes):
     print("종목 스캔 중...")
     start = (now_kst() - timedelta(days=400)).strftime("%Y-%m-%d")
 
-    kospi  = fdr.StockListing("KOSPI");  kospi["market"]  = "KOSPI"
-    kosdaq = fdr.StockListing("KOSDAQ"); kosdaq["market"] = "KOSDAQ"
-    all_s  = pd.concat([kospi, kosdaq], ignore_index=True)
+    all_s  = get_listing()
     filt   = all_s[(all_s["Marcap"] >= MARKET_CAP_MIN) & (all_s["Marcap"] <= MARKET_CAP_MAX)]
     name_map = dict(zip(filt["Code"], filt["Name"]))
     tickers  = [t for t in filt["Code"].tolist() if t not in exclude_codes]
