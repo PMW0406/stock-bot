@@ -76,6 +76,7 @@ MIN_TRADING_VALUE = 3_000_000_000       # 거래대금 30억
 REGIME_MA         = 120                 # 코스피 국면 이평
 REGIME_CONFIRM    = 5                   # 국면 전환 확인일수 (5일 연속 유지 시 전환 — 요동 방지)
 HISTORY_PATH      = "history.json"
+DASHBOARD_URL     = "https://stock-b-axtbzqntednfja7hkw6mab.streamlit.app"
 GO_LIVE           = "2026-07-07"        # 실전 가동일 (이후 청산분만 실전 성과로 집계)
 
 # ── 보조 트랙 B: 초대형주 회귀 (조정장용 · 승률 74% 검증) ──
@@ -566,7 +567,10 @@ def build_email(regime_on, regime_msg, sp_ret, nq_ret, sox_ret, us_date,
       · SOX <span style="color:#{'00c853' if sox_ret>0 else 'ff1744'}">{sox_ret*100:+.2f}%</span></span>
     </div>
     {perf_html}{sell_html}{buy_html}{pos_html}{watch_html}
-    <p style="color:#555;font-size:11px;margin-top:18px;">
+    <div style="text-align:center;margin:18px 0 6px;">
+      <a href="{DASHBOARD_URL}" style="display:inline-block;background:#2d6cdf;color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:11px 26px;border-radius:9px;">📊 대시보드 열기</a>
+    </div>
+    <p style="color:#555;font-size:11px;margin-top:12px;">
       A트랙(주력): 신고가 -5~-1%·이격4~8%·모멘텀10~25% (v14.4 밴드정밀화) · {HOLD_DAYS}일/종가-10%손절 · {SLOTS}슬롯 |
       B트랙(보조): 초대형 RSI2 과매도 회귀 · +{B_TARGET*100:.0f}%목표/{B_HOLD}일 · {B_SLOTS}슬롯<br>
       국면: 코스피 120일선 (5일 확인) · 서킷브레이커: 10청산 중 7손절 시 A트랙 5일 중단<br>
