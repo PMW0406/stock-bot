@@ -76,6 +76,7 @@ MIN_TRADING_VALUE = 3_000_000_000       # 거래대금 30억
 REGIME_MA         = 120                 # 코스피 국면 이평
 REGIME_CONFIRM    = 5                   # 국면 전환 확인일수 (5일 연속 유지 시 전환 — 요동 방지)
 HISTORY_PATH      = "history.json"
+GO_LIVE           = "2026-07-07"        # 실전 가동일 (이후 청산분만 실전 성과로 집계)
 
 # ── 보조 트랙 B: 초대형주 회귀 (조정장용 · 승률 74% 검증) ──
 B_SLOTS           = 3                   # 보조 트랙 슬롯
@@ -532,6 +533,27 @@ def build_email(regime_on, regime_msg, sp_ret, nq_ret, sox_ret, us_date,
         watch_html = f"""<div style="background:#1e1e1e;padding:12px 14px;border-radius:8px;margin-bottom:14px;font-size:12px;color:#999;">
           👀 대기 후보 (슬롯 없음): <ul style="margin:4px 0 0;padding-left:18px;">{rows}</ul></div>"""
 
+    # 실전 성과 요약 (GO_LIVE 이후)
+    perf_html = ""
+    try:
+        with open(HISTORY_PATH, encoding="utf-8") as _f:
+            _h = json.load(_f)
+        live = [c for c in _h.get("closed", []) if c.get("exit_date", "") >= GO_LIVE]
+        pos_ret = [p.get("ret_pct") for p in _h.get("positions", []) if p.get("ret_pct") is not None]
+        if live or pos_ret:
+            lr = [c["ret_pct"] for c in live]
+            wr = (sum(1 for x in lr if x > 0) / len(lr) * 100) if lr else 0
+            n_slots = SLOTS + B_SLOTS
+            realized = sum(lr) / n_slots          # 슬롯비중 환산 계좌 기여
+            unreal   = sum(pos_ret) / n_slots
+            col_t = g if realized + unreal >= 0 else r
+            perf_html = f"""<div style="background:#171a2b;border:1px solid #37406b;padding:12px 14px;border-radius:8px;margin-bottom:14px;font-size:13px;color:#cdd;">
+              📊 <b>실전 성과</b> ({GO_LIVE}~) : 청산 {len(lr)}건 · 승률 {wr:.0f}% · 실현 {sum(lr):+.1f}%p
+              | 계좌 환산 <b style="color:{col_t};">{realized+unreal:+.2f}%</b> (실현 {realized:+.2f} + 평가 {unreal:+.2f})
+              <span style="color:#778;">· 백테스트 궤도: 월 +1.0~1.8% 페이스가 정상권</span></div>"""
+    except Exception:
+        pass
+
     regime_col = g if regime_on else "#ff9800"
     html = f"""
 <html><body style="background:#0d0d0d;color:#fff;font-family:sans-serif;padding:20px;">
@@ -543,7 +565,7 @@ def build_email(regime_on, regime_msg, sp_ret, nq_ret, sox_ret, us_date,
       · 나스닥 <span style="color:#{'00c853' if nq_ret>0 else 'ff1744'}">{nq_ret*100:+.2f}%</span>
       · SOX <span style="color:#{'00c853' if sox_ret>0 else 'ff1744'}">{sox_ret*100:+.2f}%</span></span>
     </div>
-    {sell_html}{buy_html}{pos_html}{watch_html}
+    {perf_html}{sell_html}{buy_html}{pos_html}{watch_html}
     <p style="color:#555;font-size:11px;margin-top:18px;">
       A트랙(주력): 신고가 -5~-1%·이격4~8%·모멘텀10~25% (v14.4 밴드정밀화) · {HOLD_DAYS}일/종가-10%손절 · {SLOTS}슬롯 |
       B트랙(보조): 초대형 RSI2 과매도 회귀 · +{B_TARGET*100:.0f}%목표/{B_HOLD}일 · {B_SLOTS}슬롯<br>
