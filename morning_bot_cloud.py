@@ -59,6 +59,7 @@ B_MARCAP_MIN      = 5_000_000_000_000   # 시총 5조↑ (초대형)
 B_RSI2_MAX        = 10                  # RSI(2) 과매도
 B_TARGET          = 0.03                # +3% 목표 익절
 B_HOLD            = 10                  # 최대 10거래일 (목표 미달 시 종가 청산)
+B_FLOW_AVOID      = -10.0               # 외인 20일 누적 순매도 ≤ 거래대금의 -10% → 제외 (4/4년 검증 회피신호)
 
 
 # ─────────────────────────────────────────
@@ -238,8 +239,35 @@ def _rsi(close, p=2):
     return (100 - 100 / (1 + ru / rd.replace(0, np.nan))).fillna(50)
 
 
+def _foreign_flow20(ticker, close_price, avg_value):
+    """네이버 수급 2페이지(≈40일)로 외인 20일 누적 순매수대금 강도(%) 계산.
+    강도 = 20일 누적 순매수대금 / (20일평균 거래대금 × 20). 실패 시 None."""
+    try:
+        import requests
+        from io import StringIO
+        shares = []
+        for page in (1, 2):
+            url = f"https://finance.naver.com/item/frgn.naver?code={ticker}&page={page}"
+            r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=6)
+            for t in pd.read_html(StringIO(r.text)):
+                cols = str(t.columns.tolist())
+                if "외국인" in cols and "기관" in cols:
+                    t.columns = ["_".join(c) if isinstance(c, tuple) else c for c in t.columns]
+                    dc = next((c for c in t.columns if "날짜" in c), None)
+                    fc = next((c for c in t.columns if "외국인" in c and "순매" in c), None)
+                    t = t.dropna(subset=[dc])
+                    shares += [float(x) if pd.notna(x) else 0.0 for x in t[fc]]
+                    break
+        if len(shares) < 20 or not avg_value:
+            return None
+        return sum(shares[:20]) * close_price / (avg_value * 20) * 100
+    except Exception:
+        return None
+
+
 def get_candidates_b(exclude_codes):
-    """트랙B 스캔: 초대형주(5조↑) + 200일선 위 + RSI2<10 과매도 (조정장 회귀, 승률 74%)"""
+    """트랙B 스캔: 초대형주(5조↑) + 200일선 위 + RSI2<10 과매도
+    + 외인 20일 수급 필터/랭킹 (강매도 제외 · 매집 우선 — 2.9년 검증)"""
     print("트랙B(초대형 회귀) 스캔 중...")
     start = (datetime.today() - timedelta(days=400)).strftime("%Y-%m-%d")
     all_s = pd.concat([fdr.StockListing("KOSPI"), fdr.StockListing("KOSDAQ")], ignore_index=True)
@@ -257,14 +285,26 @@ def get_candidates_b(exclude_codes):
             if np.isnan(ma200) or c <= ma200: continue
             r2 = float(_rsi(close, 2).iloc[-1])
             if r2 >= B_RSI2_MAX: continue
+            avg_value = float((df["Volume"] * close).rolling(20).mean().iloc[-1])
             results.append({"code": tk, "name": name_map.get(tk, tk),
                             "close": c, "rsi2": round(r2, 1),
-                            "ma200_dist": round((c/ma200-1)*100, 1)})
+                            "ma200_dist": round((c/ma200-1)*100, 1),
+                            "avg_value": avg_value})
         except:
             continue
-    results.sort(key=lambda x: x["rsi2"])   # 과매도 심한 순
-    print(f"   -> B후보 {len(results)}개")
-    return results
+    # 통과 후보만 수급 조회 (건수 적어 부담 없음)
+    kept = []
+    for r in results:
+        f20 = _foreign_flow20(r["code"], r["close"], r["avg_value"])
+        r["flow20"] = round(f20, 1) if f20 is not None else None
+        if f20 is not None and f20 <= B_FLOW_AVOID:
+            print(f"   제외(외인 강매도 {f20:+.1f}%): {r['name']}")
+            continue
+        kept.append(r)
+    # 랭킹: 외인 20일 누적 순매수 강도 높은 순 (수급 미확인은 후순위)
+    kept.sort(key=lambda x: -(x["flow20"] if x["flow20"] is not None else -99))
+    print(f"   -> B후보 {len(kept)}개 (수급필터 후)")
+    return kept
 
 
 # ─────────────────────────────────────────
@@ -390,13 +430,13 @@ def build_email(regime_on, regime_msg, sp_ret, nq_ret, sox_ret, us_date,
         rows = "".join(f"""<tr>
           <td style="padding:8px;font-weight:bold;">{i}. {c['name']}<span style="color:#666;font-size:11px;"> {c['code']}</span></td>
           <td style="padding:8px;text-align:right;">{c['close']:,.0f}원</td>
-          <td style="padding:8px;text-align:right;color:#7cc7ff;">RSI2 {c['rsi2']}</td>
+          <td style="padding:8px;text-align:right;color:#7cc7ff;">RSI2 {c['rsi2']} · 외인20일 {('%+.1f%%' % c['flow20']) if c.get('flow20') is not None else 'N/A'}</td>
           <td style="padding:8px;text-align:right;color:{g};">목표 {c['close']*(1+B_TARGET):,.0f}원</td>
         </tr>""" for i, c in enumerate(new_entries_b, 1))
         buy_html += f"""<div style="background:#12233a;border:1px solid #2d6cdf;padding:14px;border-radius:8px;margin-bottom:14px;">
           <h3 style="color:#7cc7ff;margin:0 0 8px;">🔵 B트랙 매수 (초대형 과매도 회귀) — {len(new_entries_b)}종목</h3>
           <table style="width:100%;border-collapse:collapse;font-size:13px;color:#ddd;">{rows}</table>
-          <p style="color:#889;font-size:12px;margin:8px 0 0;">※ 내일 시가 매수 후 <b>+{B_TARGET*100:.0f}% 지정가 매도</b> 예약 · 미체결 시 {B_HOLD}거래일째 종가 매도 · 손절 없음(승률 74% 검증)</p></div>"""
+          <p style="color:#889;font-size:12px;margin:8px 0 0;">※ 내일 시가 매수 후 <b>+{B_TARGET*100:.0f}% 지정가 매도</b> 예약 · 미체결 시 {B_HOLD}거래일째 종가 매도 · 손절 없음(승률 74% 검증) · 외인 20일 강매도 종목 자동제외, 매집순 랭킹</p></div>"""
 
     # 대기 후보
     watch_html = ""
