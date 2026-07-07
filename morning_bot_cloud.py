@@ -501,13 +501,13 @@ def build_email(regime_on, regime_msg, sp_ret, nq_ret, sox_ret, us_date,
         rows = "".join(f"""<tr>
           <td style="padding:8px;font-weight:bold;">{i}. {c['name']}<span style="color:#666;font-size:11px;"> {c['code']}</span></td>
           <td style="padding:8px;text-align:right;">{c['close']:,.0f}원</td>
-          <td style="padding:8px;text-align:right;color:{g};">신고가 {c['d52']:+.1f}%{' · 🚀실적' if c.get('earn')=='GOOD' else ''}</td>
+          <td style="padding:8px;text-align:right;color:{g};">신고가 {c['d52']:+.1f}%{' · 🚀실적 <b>비중1.5x</b>' if c.get('earn')=='GOOD' else ''}</td>
           <td style="padding:8px;text-align:right;">{c['avg_value_억']:,.0f}억</td>
         </tr>""" for i, c in enumerate(new_entries, 1))
         buy_html = f"""<div style="background:#1a2a1a;border:1px solid #00c853;padding:14px;border-radius:8px;margin-bottom:14px;">
           <h3 style="color:{g};margin:0 0 8px;">🎯 오늘 매수 (시가) — {len(new_entries)}종목</h3>
           <table style="width:100%;border-collapse:collapse;font-size:13px;color:#ddd;">{rows}</table>
-          <p style="color:#888;font-size:12px;margin:8px 0 0;">※ 시가가 전일종가 대비 +{GAP_MAX:.0f}% 이상 갭상승이면 매수 보류 (봇도 자동 취소 처리)</p></div>"""
+          <p style="color:#888;font-size:12px;margin:8px 0 0;">※ 시가 갭 +{GAP_MAX:.0f}%↑ 매수 보류 · 비중: 일반 1슬롯(자금/{SLOTS}) · 🚀실적성장 1.5슬롯 (확신가중 — 5년 CAGR +3~6%p 검증)</p></div>"""
     elif regime_on:
         buy_html = """<div style="background:#1e1e1e;padding:12px 14px;border-radius:8px;margin-bottom:14px;color:#888;font-size:13px;">
           오늘 A트랙 신규 매수 없음 (슬롯 가득·후보 없음·브레이커)</div>"""
