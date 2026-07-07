@@ -20,6 +20,10 @@ SLOTS             = 12
 HOLD_DAYS         = 15
 STOP_LOSS         = 0.10   # 종가 기준
 NEAR_HIGH         = -5.0
+NEAR_HIGH_TOP     = -1.0
+PREM_MIN, PREM_MAX   = 4.0, 8.0
+RET20_MIN, RET20_MAX = 10.0, 25.0
+VOL_SPIKE_MAX     = 4.0
 GAP_MAX           = 2.0
 MARKET_CAP_MIN    = 100_000_000_000
 MARKET_CAP_MAX    = 5_000_000_000_000
@@ -95,12 +99,18 @@ def run_live_scan(progress):
             h52 = float(high.rolling(252).max().iloc[-1])
             if h52 <= 0: continue
             d52 = (c / h52 - 1) * 100
-            if d52 < NEAR_HIGH: continue
+            if not (NEAR_HIGH <= d52 < NEAR_HIGH_TOP): continue
             avg_value = float((vol * close).rolling(20).mean().iloc[-1])
             if np.isnan(avg_value) or avg_value < MIN_TRADING_VALUE: continue
             ma5  = float(close.rolling(5).mean().iloc[-1])
             ma20 = float(close.rolling(20).mean().iloc[-1])
-            if not (ma5 > ma20): continue
+            if np.isnan(ma20) or ma20 <= 0: continue
+            prem = (ma5 / ma20 - 1) * 100
+            if not (PREM_MIN <= prem < PREM_MAX): continue
+            ret20 = (c - float(close.iloc[-21])) / float(close.iloc[-21]) * 100
+            if not (RET20_MIN <= ret20 < RET20_MAX): continue
+            vol5 = float(vol.iloc[-6:-1].mean())
+            if vol5 > 0 and float(vol.iloc[-1]) / vol5 >= VOL_SPIKE_MAX: continue
             results.append({
                 "code": tk, "name": nm, "close": c,
                 "d52": round(d52, 2), "avg_value_억": round(avg_value / 100_000_000, 1),
@@ -128,10 +138,16 @@ def analyze_stock_v14(ticker, name=""):
     ma5  = float(close.rolling(5).mean().iloc[-1])
     ma20 = float(close.rolling(20).mean().iloc[-1])
 
+    prem  = (ma5 / ma20 - 1) * 100 if ma20 > 0 else 0
+    ret20 = (c - float(close.iloc[-21])) / float(close.iloc[-21]) * 100
+    vol5  = float(vol.iloc[-6:-1].mean())
+    vr    = float(vol.iloc[-1]) / vol5 if vol5 > 0 else 0
     conds = {
-        f"① 52주 신고가 -{abs(NEAR_HIGH):.0f}% 이내": d52 >= NEAR_HIGH,
+        "① 52주 신고가 -5% ~ -1% 밴드": NEAR_HIGH <= d52 < NEAR_HIGH_TOP,
         "② 20일평균 거래대금 30억 이상": avg_value >= MIN_TRADING_VALUE,
-        "③ MA5 > MA20 (단기추세)": ma5 > ma20,
+        "③ MA5/MA20 이격 +4~8% (추세형성)": PREM_MIN <= prem < PREM_MAX,
+        "④ 20일 수익률 +10~25% (모멘텀 밴드)": RET20_MIN <= ret20 < RET20_MAX,
+        "⑤ 거래량 폭증(5일평균 4배↑) 아님": not (vr >= VOL_SPIKE_MAX),
     }
     return {
         "종목명": name or ticker, "현재가": c,
@@ -140,7 +156,7 @@ def analyze_stock_v14(ticker, name=""):
             "52주 최고가": f"{h52:,.0f}원",
             "신고가 대비": f"{d52:+.2f}%",
             "거래대금(20일)": f"{avg_value/100_000_000:,.0f}억",
-            "MA5": f"{ma5:,.0f}", "MA20": f"{ma20:,.0f}",
+            "MA5/MA20 이격": f"{prem:+.1f}%", "20일 수익률": f"{ret20:+.1f}%", "거래량 배율": f"{vr:.1f}배",
         },
     }
 
@@ -149,7 +165,7 @@ def analyze_stock_v14(ticker, name=""):
 # UI
 # ─────────────────────────────────────────
 st.title("📈 주식봇 v14 — 52주 신고가 스윙")
-st.caption(f"코스피>120일선 국면 + 신고가 -5%이내 + 거래대금30억 + MA5>MA20 | {HOLD_DAYS}일 보유·종가-10%손절·{SLOTS}슬롯 | 5년 백테스트 전 연도 플러스")
+st.caption(f"v14.4 밴드정밀화: 신고가 -5~-1% + 이격4~8% + 모멘텀10~25% | {HOLD_DAYS}일·종가-10%손절·{SLOTS}슬롯 + B트랙(초대형회귀) | 5년 전 연도·전 슬롯 플러스")
 
 tab1, tab2, tab3 = st.tabs(["🏆 오늘의 후보", "💼 포트폴리오 & 히스토리", "🔍 종목 분석"])
 
@@ -430,11 +446,12 @@ with tab3:
         st.markdown(f"""
 **국면 게이트** — 코스피 종가 vs 120일선, **5일 연속 유지 시에만 ON/OFF 전환**(요동 방지 히스테리시스). ON일 때만 매매, OFF면 전량 현금
 
-**매수 조건 (전부 충족)**
-1. 시가총액 1,000억 ~ 5조
-2. 20일 평균 거래대금 30억 이상
-3. **52주 최고가 대비 -5% 이내** (핵심 팩터)
-4. MA5 > MA20 (단기추세 보강)
+**매수 조건 (전부 충족 — v14.4 밴드 정밀화)**
+1. 시가총액 1,000억 ~ 5조 / 20일 평균 거래대금 30억 이상
+2. **52주 최고가 대비 -5% ~ -1% 밴드** (딱 붙은 종목은 제외 — 밴드분석 결과)
+3. **MA5/MA20 이격 +4~8%** (추세 미형성·과열 제외)
+4. **20일 수익률 +10~25%** (모멘텀 스윗스팟)
+5. 당일 거래량이 5일평균 4배 이상 폭증한 날은 제외 (0/5년 회피밴드)
 5. 진입일 시가 갭이 **+2% 이상(추격금지) 또는 -3% 이하(급락출발)** 면 매수 취소
 
 **서킷브레이커 (손절 폭포 방어)**

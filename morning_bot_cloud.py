@@ -4,8 +4,8 @@
 
 전략 (5년 백테스트 전 연도 플러스 검증):
   국면: 코스피 종가 > 120일선  → 아니면 전량 현금 대기
-  진입: 시총 1000억~5조 + 20일평균 거래대금 30억↑
-        + 52주 최고가 대비 -5% 이내 + MA5 > MA20
+  진입(v14.4 밴드정밀화): 시총 1000억~5조 + 거래대금 30억↑
+        + 52주고가 -5~-1% + MA5/MA20 이격 4~8% + 20일수익 10~25% + 거래량폭증(4배↑)일 제외
         (시가 갭 +2% 이상이면 다음날 자동 진입취소)
   청산: 15거래일 보유 or 종가 -10% 손절 (조기 익절 없음)
   분산: 최대 12슬롯 균등 — 봇이 가상 포트폴리오로 추적, 매도알림 발송
@@ -35,7 +35,11 @@ RECEIVE_EMAIL     = os.environ["RECEIVE_EMAIL"]
 SLOTS             = 12                  # 최대 동시보유
 HOLD_DAYS         = 15                  # 보유 거래일
 STOP_LOSS         = 0.10                # 손절 -10% (종가 기준 — 장중 꼬리에 안 잘림, 승률 34→41% 검증)
-NEAR_HIGH         = -5.0                # 52주 고가 대비 -5% 이내
+NEAR_HIGH         = -5.0                # 신고가 밴드 하한 (-5%)
+NEAR_HIGH_TOP     = -1.0                # 신고가 밴드 상한 (-1%: 딱 붙은 종목 제외 — 밴드분석 v14.4)
+PREM_MIN, PREM_MAX   = 4.0, 8.0         # MA5/MA20 이격 4~8% (추세 형성 구간만)
+RET20_MIN, RET20_MAX = 10.0, 25.0       # 진입 전 20일 수익 10~25% (과열/미지근 제외)
+VOL_SPIKE_MAX     = 4.0                 # 당일 거래량 5일평균 4배↑ 폭증일 제외
 GAP_MAX           = 2.0                 # 시가 갭 +2% 이상이면 진입취소
 GAP_MIN           = -3.0                # 시가 갭 -3% 이하(급락 출발)도 진입취소
 BREAKER_WINDOW    = 10                  # 서킷브레이커: 최근 청산 10건 중
@@ -289,12 +293,18 @@ def get_candidates(exclude_codes):
             h52   = float(high.rolling(252).max().iloc[-1])
             if h52 <= 0: continue
             d52   = (c / h52 - 1) * 100
-            if d52 < NEAR_HIGH: continue                      # 신고가 -5% 이내
+            if not (NEAR_HIGH <= d52 < NEAR_HIGH_TOP): continue   # v14.4 신고가 밴드 -5~-1%
             avg_value = float((vol * close).rolling(20).mean().iloc[-1])
             if np.isnan(avg_value) or avg_value < MIN_TRADING_VALUE: continue
             ma5  = float(close.rolling(5).mean().iloc[-1])
             ma20 = float(close.rolling(20).mean().iloc[-1])
-            if not (ma5 > ma20): continue                     # 단기추세 보강 필터
+            if np.isnan(ma20) or ma20 <= 0: continue
+            prem = (ma5 / ma20 - 1) * 100
+            if not (PREM_MIN <= prem < PREM_MAX): continue    # v14.4 추세이격 밴드
+            ret20 = (c - float(close.iloc[-21])) / float(close.iloc[-21]) * 100 if len(close) > 21 else 0
+            if not (RET20_MIN <= ret20 < RET20_MAX): continue # v14.4 모멘텀 밴드
+            vol5 = float(vol.iloc[-6:-1].mean())
+            if vol5 > 0 and float(vol.iloc[-1]) / vol5 >= VOL_SPIKE_MAX: continue  # 폭증일 제외
             results.append({
                 "code": tk, "name": name_map.get(tk, tk),
                 "close": c, "hi52": h52, "d52": round(d52, 2),
@@ -407,7 +417,7 @@ def build_email(regime_on, regime_msg, sp_ret, nq_ret, sox_ret, us_date,
     </div>
     {sell_html}{buy_html}{pos_html}{watch_html}
     <p style="color:#555;font-size:11px;margin-top:18px;">
-      A트랙(주력): 신고가 -5%이내 모멘텀 · {HOLD_DAYS}일/종가-10%손절 · {SLOTS}슬롯 |
+      A트랙(주력): 신고가 -5~-1%·이격4~8%·모멘텀10~25% (v14.4 밴드정밀화) · {HOLD_DAYS}일/종가-10%손절 · {SLOTS}슬롯 |
       B트랙(보조): 초대형 RSI2 과매도 회귀 · +{B_TARGET*100:.0f}%목표/{B_HOLD}일 · {B_SLOTS}슬롯<br>
       국면: 코스피 120일선 (5일 확인) · 서킷브레이커: 10청산 중 7손절 시 A트랙 5일 중단<br>
       5년 검증: A 전연도 플러스(CAGR 8~12% 기대) · B 승률 74% | 투자는 본인 판단 하에.
