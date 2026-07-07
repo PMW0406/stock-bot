@@ -9,9 +9,9 @@
       "entry_price": 52700.0,
       "stop_price": 47430.0,
       "ref_close": 52600.0,
-      "current": 57800.0,
-      "ret_pct": 9.68,
-      "days_held": 5
+      "current": 56200.0,
+      "ret_pct": 6.64,
+      "days_held": 6
     },
     {
       "code": "064290",
@@ -20,9 +20,9 @@
       "entry_price": 45750.0,
       "stop_price": 41175.0,
       "ref_close": 48500.0,
-      "current": 48550.0,
-      "ret_pct": 6.12,
-      "days_held": 3
+      "current": 46350.0,
+      "ret_pct": 1.31,
+      "days_held": 4
     },
     {
       "code": "121440",
@@ -31,9 +31,9 @@
       "entry_price": 6640.0,
       "stop_price": 5976.0,
       "ref_close": 6640.0,
-      "current": 6650.0,
-      "ret_pct": 0.15,
-      "days_held": 1
+      "current": 6660.0,
+      "ret_pct": 0.3,
+      "days_held": 2
     },
     {
       "code": "161890",
@@ -42,9 +42,36 @@
       "entry_price": 115800.0,
       "stop_price": 104220.0,
       "ref_close": 117800.0,
-      "current": 116000.0,
-      "ret_pct": 0.17,
-      "days_held": 1
+      "current": 118600.0,
+      "ret_pct": 2.42,
+      "days_held": 2
+    },
+    {
+      "code": "004170",
+      "name": "신세계",
+      "track": "B",
+      "entry_date": "2026-07-07",
+      "entry_price": null,
+      "ref_close": 665000.0,
+      "target_price": null
+    },
+    {
+      "code": "000150",
+      "name": "두산",
+      "track": "B",
+      "entry_date": "2026-07-07",
+      "entry_price": null,
+      "ref_close": 1291000.0,
+      "target_price": null
+    },
+    {
+      "code": "017670",
+      "name": "SK텔레콤",
+      "track": "B",
+      "entry_date": "2026-07-07",
+      "entry_price": null,
+      "ref_close": 85300.0,
+      "target_price": null
     }
   ],
   "closed": [
@@ -1234,5 +1261,9 @@
         }
       ]
     }
-  ]
+  ],
+  "breaker": {
+    "pause_left": 4,
+    "reset_date": "2026-07-07"
+  }
 }
