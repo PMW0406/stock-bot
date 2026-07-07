@@ -328,9 +328,9 @@ with tab2:
                 ret  = p.get("ret_pct")
                 cur  = p.get("current")
                 held = p.get("days_held", 0) or 0
-                barw = min(int(held / max_d * 100), 100)
                 is_b = p.get("track") == "B"
                 max_d = 10 if is_b else HOLD_DAYS
+                barw = min(int(held / max_d * 100), 100)
                 stop_txt = (f"목표 {p['target_price']:,.0f}원" if is_b and p.get("target_price")
                             else f"{p['stop_price']:,.0f}원" if p.get("stop_price") else "-")
                 ptag = '<span class="tag" style="background:#4a3800;color:#ffc107;margin-left:8px;">체결대기</span>' if pending else ""
