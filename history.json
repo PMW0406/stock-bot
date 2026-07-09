@@ -597,6 +597,17 @@
       "exit_price": 379555.0,
       "ret_pct": 3.0,
       "reason": "목표 +3%"
+    },
+    {
+      "code": "058470",
+      "name": "리노공업",
+      "track": "B",
+      "entry_date": "2026-06-25",
+      "entry_price": 87900.0,
+      "exit_date": "2026-07-08",
+      "exit_price": 69200.0,
+      "ret_pct": -21.27,
+      "reason": "10일 만기(B)"
     }
   ],
   "legacy": [
