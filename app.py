@@ -25,6 +25,7 @@ PREM_MIN, PREM_MAX   = 4.0, 8.0
 RET20_MIN, RET20_MAX = 10.0, 25.0
 VOL_SPIKE_MAX     = 4.0
 FRESH_DAYS        = 5
+A_TARGET_MED, A_TARGET_WIN = 0.09, 0.16
 GAP_MAX           = 2.0
 MARKET_CAP_MIN    = 100_000_000_000
 MARKET_CAP_MAX    = 5_000_000_000_000
@@ -223,7 +224,8 @@ with tab1:
                         f'</div>'
                         f'<div><span class="metric">52주고가 <b>{c["d52"]:+.1f}%</b></span>'
                         f'<span class="metric">거래대금 <b>{c["avg_value_억"]:,.0f}억</b></span>'
-                        f'<span class="metric">매수가 <b>내일 시가</b> (갭+2%↑ 보류)</span></div>'
+                        f'<span class="metric">🎯 기대목표 <b style="color:#ffd54f;">{c["close"]*(1+A_TARGET_MED):,.0f}원 (+9%)</b></span>'
+                        f'<span class="metric">잘 풀리면 <b>{c["close"]*(1+A_TARGET_WIN):,.0f}원 (+16%)</b></span></div>'
                         f'</div>', unsafe_allow_html=True)
             else:
                 st.markdown("""<div class="cand-card" style="text-align:center;color:#718096;padding:22px;">
@@ -378,11 +380,13 @@ with tab2:
                 cur_txt = f"{cur:,.0f}원" if cur else "-"
                 ret_txt = f"{ret:+.1f}%" if ret is not None else "-"
                 entry_txt = "대기" if pending else f"{p['entry_price']:,.0f}원"
+                tgt_txt = ("-" if pending else
+                           (f"{p['entry_price']*(1+A_TARGET_MED):,.0f}원" if not is_b else f"{p.get('target_price',0):,.0f}원"))
                 st.markdown(
                     f'<div class="stock-card">'
                     f'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">'
                     f'<div><span class="stock-name">{p["name"]}</span><span class="stock-code">{p["code"]}</span>{ptag}</div>'
-                    f'<div style="text-align:right;"><div style="color:#718096;font-size:11px;">현재가</div>'
+                    f'<div style="text-align:right;"><div style="color:#718096;font-size:11px;">현재가 · 🎯기대 {tgt_txt}</div>'
                     f'<div style="font-size:18px;font-weight:700;color:{pct_color(ret)};">{cur_txt} <span style="font-size:13px;">({ret_txt})</span></div></div>'
                     f'</div>'
                     f'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">'
