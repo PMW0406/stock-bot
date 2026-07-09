@@ -26,6 +26,7 @@ RET20_MIN, RET20_MAX = 10.0, 25.0
 VOL_SPIKE_MAX     = 4.0
 FRESH_DAYS        = 5
 A_TARGET_MED, A_TARGET_WIN = 0.09, 0.16
+GO_LIVE = "2026-07-07"
 GAP_MAX           = 2.0
 MARKET_CAP_MIN    = 100_000_000_000
 MARKET_CAP_MAX    = 5_000_000_000_000
@@ -169,7 +170,7 @@ def analyze_stock_v14(ticker, name=""):
 # UI
 # ─────────────────────────────────────────
 st.title("📈 주식봇 v14 — 52주 신고가 스윙")
-st.caption(f"v14.7: 신선한 신고가 + 밴드정밀화 + 실적성장 필터(역성장 제외·고성장 우선) | {HOLD_DAYS}일·종가-10%손절·{SLOTS}슬롯 + B트랙(초대형회귀) | 5년 전 연도·전 슬롯 플러스")
+st.caption(f"v14.9 · A: 신선한 신고가+밴드+실적필터, 기대목표 +9%/+16%, {HOLD_DAYS}일·-10%손절·{SLOTS}슬롯(🚀1.5x) | B: 초대형 회귀+수급, +5%지정가/15일·3슬롯 | 합산 기대 연 12~18%·승률 ~57%")
 
 tab1, tab2, tab3 = st.tabs(["🏆 오늘의 후보", "💼 포트폴리오 & 히스토리", "🔍 종목 분석"])
 
@@ -293,6 +294,8 @@ with tab1:
                 "종목명": c["name"], "코드": c["code"],
                 "현재가": f"{c['close']:,.0f}원",
                 "신고가 대비": f"{c['d52']:+.1f}%",
+                "🎯기대(+9%)": f"{c['close']*(1+A_TARGET_MED):,.0f}원",
+                "잘풀리면(+16%)": f"{c['close']*(1+A_TARGET_WIN):,.0f}원",
                 "거래대금(20일)": f"{c['avg_value_억']:,.0f}억",
             } for c in ls["results"]]
             st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
@@ -338,17 +341,21 @@ with tab2:
             if x is None: return "#888"
             return "#00c853" if x >= 0 else "#ff1744"
 
-        # ── 요약 카드 ──
+        # ── 요약 카드: 실전(GO_LIVE~) vs 백필 시뮬 ──
         if closed:
-            rets = [c["ret_pct"] for c in closed if c.get("ret_pct") is not None]
-            wins = [x for x in rets if x > 0]
-            unreal = [p.get("ret_pct") for p in positions if p.get("ret_pct") is not None]
+            live_cl = [c for c in closed if c.get("exit_date","") >= GO_LIVE]
+            back_cl = [c for c in closed if c.get("exit_date","") <  GO_LIVE]
+            unreal  = [p.get("ret_pct") for p in positions if p.get("ret_pct") is not None]
+            n_slots = SLOTS + 3
+            lr = [c["ret_pct"] for c in live_cl]
+            br = [c["ret_pct"] for c in back_cl]
+            acct = (sum(lr) + sum(unreal)) / n_slots
             cols = st.columns(4)
             metrics = [
-                ("완료 거래", f"{len(closed)}건", f"만기 {sum(1 for c in closed if '만기' in c['reason'])} · 손절 {sum(1 for c in closed if '손절' in c['reason'])}", "#63b3ed"),
-                ("승률", f"{len(wins)/len(rets)*100:.0f}%" if rets else "-", f"수익 {len(wins)} / 전체 {len(rets)}", "#63b3ed"),
-                ("평균 수익률", f"{np.mean(rets):+.2f}%" if rets else "-", "거래당 실현 기준", pct_color(np.mean(rets) if rets else None)),
-                ("보유중 평가", f"{np.mean(unreal):+.1f}%" if unreal else "-", f"{len(positions)}종목 평균 수익률", pct_color(np.mean(unreal) if unreal else None)),
+                ("🔴 실전 계좌 (7/7~)", f"{acct:+.2f}%", f"청산 {len(lr)}건 + 보유 {len(positions)}종목 평가 · 슬롯환산", pct_color(acct)),
+                ("실전 승률", (f"{sum(1 for x in lr if x>0)/len(lr)*100:.0f}%" if lr else "—"), f"청산 {len(lr)}건 기준", "#63b3ed"),
+                ("보유중 평가", f"{np.mean(unreal):+.1f}%" if unreal else "—", f"{len(positions)}종목 평균", pct_color(np.mean(unreal) if unreal else None)),
+                ("📜 백필 시뮬 (4/6~7/6)", (f"{sum(br)/n_slots:+.2f}%" if br else "—"), (f"{len(br)}건 · 승률 {sum(1 for x in br if x>0)/len(br)*100:.0f}%" if br else ""), pct_color(sum(br)/n_slots if br else None)),
             ]
             for col, (t, v, s, vc) in zip(cols, metrics):
                 col.markdown(f"""<div style="background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);border:1px solid #0f3460;border-radius:16px;padding:20px 16px;text-align:center;">
@@ -508,6 +515,10 @@ with tab3:
 
 **청산 (조기 익절 없음 — 승자 태우기)**
 - {HOLD_DAYS}거래일 만기 매도 or **종가 기준 -10% 손절** (장중 꼬리에 안 잘림)
+
+**기대 목표가 (참고선 — 매도는 규칙이 자동 실행)**
+- 🎯 기대목표 **+9%** = 백테스트에서 보유 중 절반이 도달한 피크 중앙값
+- 잘 풀리면 **+16%** = 승리 거래의 평균 종착지 (상위 10%는 +22~24%)
 
 **자금 운용** — A트랙 최대 {SLOTS}종목 분산 · **🚀실적성장 신호는 1.5배 비중** (확신가중, v14.8 — 전 슬롯구성 CAGR +3~6%p 검증. 2배는 특정연도 쏠림으로 기각)
 
