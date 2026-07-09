@@ -234,7 +234,7 @@ with tab1:
             if cands_b:
                 st.markdown("""<div style="display:flex;align-items:center;margin:18px 0 10px 0;">
                   <div style="background:#123a5c;border-radius:8px;padding:4px 14px;font-size:14px;font-weight:700;color:#7cc7ff;">🔵 B트랙 — 초대형 과매도 회귀</div>
-                  <div style="color:#4a5568;font-size:12px;margin-left:10px;">+3% 지정가 익절 · 10일 · 승률 74%</div></div>""", unsafe_allow_html=True)
+                  <div style="color:#4a5568;font-size:12px;margin-left:10px;">+5% 지정가 익절 · 10일 · 승률 ~69%</div></div>""", unsafe_allow_html=True)
                 newb = set(saved.get("new_entries_b", []))
                 for c in cands_b:
                     isbuy = c["code"] in newb
@@ -250,7 +250,7 @@ with tab1:
                         f'<div><span class="metric">RSI(2) <b>{c["rsi2"]}</b></span>'
                         f'<span class="metric">외인 20일수급 <b style="color:{flow_col};">{flow}</b></span>'
                         f'<span class="metric">200일선 <b>{c["ma200_dist"]:+.1f}%</b></span>'
-                        f'<span class="metric">목표 <b style="color:#4ade80;">{c["close"]*1.03:,.0f}원</b></span></div>'
+                        f'<span class="metric">목표 <b style="color:#4ade80;">{c["close"]*1.05:,.0f}원</b></span></div>'
                         f'</div>', unsafe_allow_html=True)
         else:
             st.info("이전 버전(v13) 결과 파일입니다. 내일 아침 봇 실행 후 v14 형식으로 갱신됩니다.")
@@ -390,7 +390,7 @@ with tab2:
                     f'<div style="color:#e2e8f0;font-size:14px;font-weight:600;">{entry_txt}</div></div>'
                     f'<div class="mini-box"><div class="mini-title">보유일 {held}/{max_d}</div>'
                     f'<div style="background:#2d3748;border-radius:4px;height:8px;margin-top:6px;"><div style="background:#63b3ed;width:{barw}%;height:8px;border-radius:4px;"></div></div></div>'
-                    f'<div class="mini-box"><div class="mini-title">{"목표가 (+3%)" if is_b else "손절가 (-10%)"}</div>'
+                    f'<div class="mini-box"><div class="mini-title">{"목표가 (+5%)" if is_b else "손절가 (-10%)"}</div>'
                     f'<div style="color:{"#00c853" if is_b else "#ff1744"};font-size:14px;font-weight:600;">{stop_txt}</div></div>'
                     f'</div></div>', unsafe_allow_html=True)
         else:
@@ -509,7 +509,7 @@ with tab3:
 
 **🔵 보조 B트랙 (조정장 회귀 · 승률 74% 검증)**
 - 초대형주(시총 5조↑) + 200일선 위 + RSI(2) < 10 과매도 → 익일 시가 매수
-- 청산: **+3% 지정가 익절** or 10거래일 종가 매도 (손절 없음) · 최대 3슬롯
+- 청산: **+5% 지정가 익절** or 10거래일 종가 매도 (손절 없음) · 최대 3슬롯 (+3%→+5% 상향: 승률 78→69%, 거래당 수익 1.7배 — 3/3년 검증)
 - **수급 필터**: 외인 20일 누적 순매도가 거래대금 -10% 이하인 종목 제외 (4/4년 검증 회피신호) · 후보는 외인 매집 강도순 랭킹
 - A트랙이 조용한 조정기에 신호가 나는 상호보완 구조
 
