@@ -234,7 +234,7 @@ with tab1:
             if cands_b:
                 st.markdown("""<div style="display:flex;align-items:center;margin:18px 0 10px 0;">
                   <div style="background:#123a5c;border-radius:8px;padding:4px 14px;font-size:14px;font-weight:700;color:#7cc7ff;">🔵 B트랙 — 초대형 과매도 회귀</div>
-                  <div style="color:#4a5568;font-size:12px;margin-left:10px;">+5% 지정가 익절 · 10일 · 승률 ~69%</div></div>""", unsafe_allow_html=True)
+                  <div style="color:#4a5568;font-size:12px;margin-left:10px;">+5% 지정가 익절 · 15일 · 승률 ~73%</div></div>""", unsafe_allow_html=True)
                 newb = set(saved.get("new_entries_b", []))
                 for c in cands_b:
                     isbuy = c["code"] in newb
@@ -368,7 +368,7 @@ with tab2:
                 cur  = p.get("current")
                 held = p.get("days_held", 0) or 0
                 is_b = p.get("track") == "B"
-                max_d = 10 if is_b else HOLD_DAYS
+                max_d = 15 if is_b else HOLD_DAYS
                 barw = min(int(held / max_d * 100), 100)
                 stop_txt = (f"목표 {p['target_price']:,.0f}원" if is_b and p.get("target_price")
                             else f"{p['stop_price']:,.0f}원" if p.get("stop_price") else "-")
@@ -509,7 +509,7 @@ with tab3:
 
 **🔵 보조 B트랙 (조정장 회귀 · 승률 74% 검증)**
 - 초대형주(시총 5조↑) + 200일선 위 + RSI(2) < 10 과매도 → 익일 시가 매수
-- 청산: **+5% 지정가 익절** or 10거래일 종가 매도 (손절 없음) · 최대 3슬롯 (+3%→+5% 상향: 승률 78→69%, 거래당 수익 1.7배 — 3/3년 검증)
+- 청산: **+5% 지정가 익절** or 15거래일 종가 매도 (손절 없음) · 최대 3슬롯 (+3%→+5% 상향: 승률 78→69%, 거래당 수익 1.7배 — 3/3년 검증)
 - **수급 필터**: 외인 20일 누적 순매도가 거래대금 -10% 이하인 종목 제외 (4/4년 검증 회피신호) · 후보는 외인 매집 강도순 랭킹
 - A트랙이 조용한 조정기에 신호가 나는 상호보완 구조
 
