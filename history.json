@@ -3,26 +3,15 @@
   "backfilled": "v14.8 2026-04-06~2026-07-07",
   "positions": [
     {
-      "code": "058470",
-      "name": "리노공업",
-      "track": "B",
-      "entry_date": "2026-06-25",
-      "entry_price": 87900.0,
-      "target_price": 92295.0,
-      "current": 71100.0,
-      "ret_pct": -19.11,
-      "days_held": 9
-    },
-    {
       "code": "307950",
       "name": "현대오토에버",
       "track": "B",
       "entry_date": "2026-07-06",
       "entry_price": 501000.0,
       "target_price": 526050.0,
-      "current": 469500.0,
-      "ret_pct": -6.29,
-      "days_held": 2
+      "current": 441500.0,
+      "ret_pct": -11.88,
+      "days_held": 3
     },
     {
       "code": "017670",
@@ -31,9 +20,18 @@
       "entry_date": "2026-07-06",
       "entry_price": 86800.0,
       "target_price": 91140.0,
-      "current": 85300.0,
-      "ret_pct": -1.73,
-      "days_held": 2
+      "current": 84000.0,
+      "ret_pct": -3.23,
+      "days_held": 3
+    },
+    {
+      "code": "004170",
+      "name": "신세계",
+      "track": "B",
+      "entry_date": "2026-07-09",
+      "entry_price": null,
+      "ref_close": 625000.0,
+      "target_price": null
     }
   ],
   "closed": [
