@@ -9,9 +9,9 @@
       "entry_date": "2026-07-06",
       "entry_price": 501000.0,
       "target_price": 526050.0,
-      "current": 433000.0,
-      "ret_pct": -13.57,
-      "days_held": 4
+      "current": 452000.0,
+      "ret_pct": -9.78,
+      "days_held": 5
     },
     {
       "code": "017670",
@@ -20,21 +20,18 @@
       "entry_date": "2026-07-06",
       "entry_price": 86800.0,
       "target_price": 91140.0,
-      "current": 86700.0,
-      "ret_pct": -0.12,
-      "days_held": 4
+      "current": 88700.0,
+      "ret_pct": 2.19,
+      "days_held": 5
     },
     {
-      "code": "004170",
-      "name": "신세계",
+      "code": "011070",
+      "name": "LG이노텍",
       "track": "B",
-      "entry_date": "2026-07-09",
-      "entry_price": 626000.0,
-      "ref_close": 625000.0,
-      "target_price": 657300.0,
-      "current": 606000.0,
-      "ret_pct": -3.19,
-      "days_held": 1
+      "entry_date": "2026-07-13",
+      "entry_price": null,
+      "ref_close": 742000.0,
+      "target_price": null
     }
   ],
   "closed": [
@@ -609,6 +606,17 @@
       "exit_price": 69200.0,
       "ret_pct": -21.27,
       "reason": "10일 만기(B)"
+    },
+    {
+      "code": "004170",
+      "name": "신세계",
+      "track": "B",
+      "entry_date": "2026-07-09",
+      "entry_price": 626000.0,
+      "exit_date": "2026-07-10",
+      "exit_price": 657300.0,
+      "ret_pct": 5.0,
+      "reason": "목표 +5%"
     }
   ],
   "legacy": [
