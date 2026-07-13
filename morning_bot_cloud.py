@@ -221,13 +221,14 @@ def update_positions(hist):
                     sell_alerts.append({"name": p["name"], "code": p["code"],
                                         "msg": f"⏰ [B트랙] {B_HOLD}거래일 만기 ({ret:+.1f}%) — 오늘 매도"})
                     continue
-                # B-3) 어깨(2차) 참고선 매일 갱신 — 어제 종가 기준 "여기서부터 어디까지" (표시 전용, 매도규칙 아님)
+                # B-3) 2차 목표(어깨) 매일 갱신 — 기준은 매수가 고정, 20일 고점만 최신으로 (표시 전용, 매도규칙 아님)
                 hi20_now = float(df["High"].iloc[-20:].max())
-                if hi20_now > cur:
-                    p["target2_price"] = round(min(cur + B_TARGET2_FIB * (hi20_now - cur),
-                                                   cur * (1 + B_TARGET2_CAP)), 2)
+                e = p["entry_price"]
+                t2 = min(e + B_TARGET2_FIB * (hi20_now - e), e * (1 + B_TARGET2_CAP)) if hi20_now > e else 0
+                if t2 > p["target_price"]:
+                    p["target2_price"] = round(t2, 2)
                 else:
-                    p.pop("target2_price", None)   # 20일 고점 회복 — 머리 위 공간 없음
+                    p.pop("target2_price", None)   # 2차가 1차 아래로 내려오면 표시 안 함
             else:
                 # 2) A: 손절 — 종가 기준 -10% 이탈 (장중 꼬리 무시)
                 breach = held[held["Close"] <= p["stop_price"]]
@@ -487,7 +488,7 @@ def build_email(regime_on, regime_msg, sp_ret, nq_ret, sox_ret, us_date,
         max_d = HOLD_DAYS if track == "A" else B_HOLD
         exit_txt = (f"{p.get('stop_price',0):,.0f}" if track == "A" else
                     f"목표 {p.get('target_price',0):,.0f}" +
-                    (f"<br><span style='font-size:11px;color:#ffd54f;'>어깨(오늘) {p['target2_price']:,.0f}</span>" if p.get('target2_price') else "")
+                    (f"<br><span style='font-size:11px;color:#ffd54f;'>2차 {p['target2_price']:,.0f}</span>" if p.get('target2_price') else "")
                    ) if not pending else "-"
         badge = "" if track == "A" else " <span style='background:#123a5c;color:#7cc7ff;border-radius:4px;padding:1px 6px;font-size:10px;'>B</span>"
         pos_rows += f"""<tr>
@@ -535,7 +536,7 @@ def build_email(regime_on, regime_msg, sp_ret, nq_ret, sox_ret, us_date,
             if c.get('hi20') and c['hi20'] > c['close']:
                 t2 = min(c['close'] + B_TARGET2_FIB * (c['hi20'] - c['close']), c['close'] * (1 + B_TARGET2_CAP))
                 if t2 > c['close'] * (1 + B_TARGET):
-                    return f"""<br><span style="font-size:11px;color:#ffd54f;">어깨 {t2:,.0f}원</span>"""
+                    return f"""<br><span style="font-size:11px;color:#ffd54f;">2차 {t2:,.0f}원</span>"""
             return ""
         rows = "".join(f"""<tr>
           <td style="padding:8px;font-weight:bold;">{i}. {c['name']}<span style="color:#666;font-size:11px;"> {c['code']}</span></td>
@@ -547,7 +548,7 @@ def build_email(regime_on, regime_msg, sp_ret, nq_ret, sox_ret, us_date,
           <h3 style="color:#7cc7ff;margin:0 0 8px;">🔵 B트랙 매수 (초대형 과매도 회귀) — {len(new_entries_b)}종목</h3>
           <table style="width:100%;border-collapse:collapse;font-size:13px;color:#ddd;">{rows}</table>
           <p style="color:#889;font-size:12px;margin:8px 0 0;">※ 내일 시가 매수 후 <b>+{B_TARGET*100:.0f}% 지정가 매도</b> 예약 · 미체결 시 {B_HOLD}거래일째 종가 매도 · 손절 없음(승률 74% 검증) · 외인 20일 강매도 종목 자동제외, 매집순 랭킹<br>
-          ※ <b>어깨(2차)</b>=20일 고점까지 낙폭의 61.8% 되돌림(상한 +{B_TARGET2_CAP*100:.0f}%), 15일 내 도달률 51% 실측 — <b>참고선일 뿐, 자동매도는 +{B_TARGET*100:.0f}%</b>. 장이 좋을 때 절반 홀딩 판단용</p></div>"""
+          ※ <b>2차 목표(어깨)</b>=매수가 기준 20일 고점까지 낙폭의 61.8% 되돌림(상한 +{B_TARGET2_CAP*100:.0f}%), 15일 내 도달률 51% 실측 · 매일 갱신 — <b>참고선일 뿐, 자동매도는 1차 +{B_TARGET*100:.0f}%</b>. 장이 좋을 때 절반 홀딩 판단용</p></div>"""
 
     # 대기 후보
     watch_html = ""

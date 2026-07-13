@@ -13,7 +13,7 @@
       "ret_pct": -12.57,
       "days_held": 6,
       "hi20": 803000.0,
-      "target2_price": 490560.0
+      "target2_price": 561120.0
     },
     {
       "code": "017670",
@@ -26,7 +26,7 @@
       "ret_pct": -1.27,
       "days_held": 6,
       "hi20": 115700.0,
-      "target2_price": 95984.0
+      "target2_price": 97216.0
     },
     {
       "code": "011070",
@@ -40,7 +40,7 @@
       "ret_pct": -10.55,
       "days_held": 1,
       "hi20": 1320000.0,
-      "target2_price": 740320.0
+      "target2_price": 827680.0
     }
   ],
   "closed": [
