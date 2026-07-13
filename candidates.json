@@ -1,22 +1,47 @@
 {
   "format": "v14",
-  "updated": "2026-07-13 07:47",
+  "updated": "2026-07-14 07:51",
   "regime_on": true,
-  "regime_msg": "코스피 7,476 vs 120일선 6,559 (+14.0%) — 매매 ON",
+  "regime_msg": "코스피 6,807 vs 120일선 6,577 (+3.5%) — 매매 ON",
   "candidates": [],
   "new_entries": [],
   "candidates_b": [
     {
-      "code": "011070",
-      "name": "LG이노텍",
-      "close": 742000.0,
-      "rsi2": 3.9,
-      "ma200_dist": 70.6,
-      "avg_value": 395200715650.0,
+      "code": "003550",
+      "name": "LG",
+      "close": 99300.0,
+      "rsi2": 6.1,
+      "ma200_dist": 8.1,
+      "avg_value": 53082671885.0,
+      "flow20": 17.5
+    },
+    {
+      "code": "036570",
+      "name": "NC",
+      "close": 240500.0,
+      "rsi2": 5.9,
+      "ma200_dist": 3.7,
+      "avg_value": 26683545150.0,
       "flow20": 5.8
+    },
+    {
+      "code": "003490",
+      "name": "대한항공",
+      "close": 25850.0,
+      "rsi2": 4.3,
+      "ma200_dist": 6.7,
+      "avg_value": 89599186705.0,
+      "flow20": 1.0
+    },
+    {
+      "code": "000660",
+      "name": "SK하이닉스",
+      "close": 1845000.0,
+      "rsi2": 7.8,
+      "ma200_dist": 70.2,
+      "avg_value": 15069853825850.0,
+      "flow20": -5.6
     }
   ],
-  "new_entries_b": [
-    "011070"
-  ]
+  "new_entries_b": []
 }

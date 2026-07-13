@@ -9,9 +9,9 @@
       "entry_date": "2026-07-06",
       "entry_price": 501000.0,
       "target_price": 526050.0,
-      "current": 452000.0,
-      "ret_pct": -9.78,
-      "days_held": 5
+      "current": 438000.0,
+      "ret_pct": -12.57,
+      "days_held": 6
     },
     {
       "code": "017670",
@@ -20,18 +20,21 @@
       "entry_date": "2026-07-06",
       "entry_price": 86800.0,
       "target_price": 91140.0,
-      "current": 88700.0,
-      "ret_pct": 2.19,
-      "days_held": 5
+      "current": 85700.0,
+      "ret_pct": -1.27,
+      "days_held": 6
     },
     {
       "code": "011070",
       "name": "LG이노텍",
       "track": "B",
       "entry_date": "2026-07-13",
-      "entry_price": null,
+      "entry_price": 739000.0,
       "ref_close": 742000.0,
-      "target_price": null
+      "target_price": 775950.0,
+      "current": 661000.0,
+      "ret_pct": -10.55,
+      "days_held": 1
     }
   ],
   "closed": [
