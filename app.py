@@ -385,7 +385,7 @@ with tab2:
                 stop_txt = (f"목표 {p['target_price']:,.0f}원" if is_b and p.get("target_price")
                             else f"{p['stop_price']:,.0f}원" if p.get("stop_price") else "-")
                 if is_b and p.get("target2_price"):
-                    stop_txt += f'<div style="color:#ffd54f;font-size:11px;margin-top:2px;">어깨(2차) {p["target2_price"]:,.0f}원</div>'
+                    stop_txt += f'<div style="color:#ffd54f;font-size:11px;margin-top:2px;">어깨(오늘) {p["target2_price"]:,.0f}원</div>'
                 ptag = '<span class="tag" style="background:#4a3800;color:#ffc107;margin-left:8px;">체결대기</span>' if pending else ""
                 if is_b:
                     ptag += '<span class="tag" style="background:#123a5c;color:#7cc7ff;margin-left:8px;">B 회귀</span>'

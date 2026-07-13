@@ -166,7 +166,7 @@ def update_positions(hist):
 
     for p in hist["positions"]:
         try:
-            start = (pd.Timestamp(p["entry_date"]) - timedelta(days=7)).strftime("%Y-%m-%d")
+            start = (pd.Timestamp(p["entry_date"]) - timedelta(days=45)).strftime("%Y-%m-%d")   # 어깨 갱신용 20세션 확보
             df = fdr.DataReader(p["code"], start)
             if df is None or df.empty:
                 kept.append(p); continue
@@ -186,12 +186,7 @@ def update_positions(hist):
                     if track == "A":
                         p["stop_price"] = round(o * (1 - STOP_LOSS), 2)
                     else:
-                        p["target_price"] = round(o * (1 + B_TARGET), 2)
-                        hi20 = p.get("hi20")
-                        if hi20 and hi20 > o:   # 2차(어깨) = min(낙폭 61.8% 되돌림, +12%) — 표시용 참고선
-                            t2 = min(o + B_TARGET2_FIB * (hi20 - o), o * (1 + B_TARGET2_CAP))
-                            if t2 > p["target_price"]:
-                                p["target2_price"] = round(t2, 2)
+                        p["target_price"] = round(o * (1 + B_TARGET), 2)   # 어깨(2차)는 아래 B-3에서 매일 갱신
                 else:
                     kept.append(p); continue    # 아직 진입일 시세 없음 (휴장 등)
 
@@ -226,6 +221,13 @@ def update_positions(hist):
                     sell_alerts.append({"name": p["name"], "code": p["code"],
                                         "msg": f"⏰ [B트랙] {B_HOLD}거래일 만기 ({ret:+.1f}%) — 오늘 매도"})
                     continue
+                # B-3) 어깨(2차) 참고선 매일 갱신 — 어제 종가 기준 "여기서부터 어디까지" (표시 전용, 매도규칙 아님)
+                hi20_now = float(df["High"].iloc[-20:].max())
+                if hi20_now > cur:
+                    p["target2_price"] = round(min(cur + B_TARGET2_FIB * (hi20_now - cur),
+                                                   cur * (1 + B_TARGET2_CAP)), 2)
+                else:
+                    p.pop("target2_price", None)   # 20일 고점 회복 — 머리 위 공간 없음
             else:
                 # 2) A: 손절 — 종가 기준 -10% 이탈 (장중 꼬리 무시)
                 breach = held[held["Close"] <= p["stop_price"]]
@@ -485,7 +487,7 @@ def build_email(regime_on, regime_msg, sp_ret, nq_ret, sox_ret, us_date,
         max_d = HOLD_DAYS if track == "A" else B_HOLD
         exit_txt = (f"{p.get('stop_price',0):,.0f}" if track == "A" else
                     f"목표 {p.get('target_price',0):,.0f}" +
-                    (f"<br><span style='font-size:11px;color:#ffd54f;'>어깨 {p['target2_price']:,.0f}</span>" if p.get('target2_price') else "")
+                    (f"<br><span style='font-size:11px;color:#ffd54f;'>어깨(오늘) {p['target2_price']:,.0f}</span>" if p.get('target2_price') else "")
                    ) if not pending else "-"
         badge = "" if track == "A" else " <span style='background:#123a5c;color:#7cc7ff;border-radius:4px;padding:1px 6px;font-size:10px;'>B</span>"
         pos_rows += f"""<tr>
