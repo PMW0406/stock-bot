@@ -86,6 +86,8 @@ B_SLOTS           = 3                   # 보조 트랙 슬롯
 B_MARCAP_MIN      = 5_000_000_000_000   # 시총 5조↑ (초대형)
 B_RSI2_MAX        = 10                  # RSI(2) 과매도
 B_TARGET          = 0.05                # +5% 목표 익절 (승률 69%·수익 1.7배 — +3%에서 상향, 3/3년 검증)
+B_TARGET2_FIB     = 0.618               # 2차(어깨) 참고선: 20일고점까지 낙폭의 61.8% 되돌림 (매도규칙 아님)
+B_TARGET2_CAP     = 0.12                # 어깨 상한 +12% — 낙폭 과대시 되돌림선이 머리가 되는 것 방지 (캡 적용시 도달률 51% 실측)
 B_HOLD            = 15                  # 최대 15거래일 (10→15 연장: 초대형 회귀는 느림 — K3 CAGR +2→+18%, MDD -28→-10 검증)
 B_FLOW_AVOID      = -10.0               # 외인 20일 누적 순매도 ≤ 거래대금의 -10% → 제외 (4/4년 검증 회피신호)
 
@@ -185,6 +187,11 @@ def update_positions(hist):
                         p["stop_price"] = round(o * (1 - STOP_LOSS), 2)
                     else:
                         p["target_price"] = round(o * (1 + B_TARGET), 2)
+                        hi20 = p.get("hi20")
+                        if hi20 and hi20 > o:   # 2차(어깨) = min(낙폭 61.8% 되돌림, +12%) — 표시용 참고선
+                            t2 = min(o + B_TARGET2_FIB * (hi20 - o), o * (1 + B_TARGET2_CAP))
+                            if t2 > p["target_price"]:
+                                p["target2_price"] = round(t2, 2)
                 else:
                     kept.append(p); continue    # 아직 진입일 시세 없음 (휴장 등)
 
@@ -314,10 +321,11 @@ def get_candidates_b(exclude_codes):
             r2 = float(_rsi(close, 2).iloc[-1])
             if r2 >= B_RSI2_MAX: continue
             avg_value = float((df["Volume"] * close).rolling(20).mean().iloc[-1])
+            hi20 = float(df["High"].iloc[-20:].max())   # 직전 20일 고가 (2차 어깨목표 기준점)
             results.append({"code": tk, "name": name_map.get(tk, tk),
                             "close": c, "rsi2": round(r2, 1),
                             "ma200_dist": round((c/ma200-1)*100, 1),
-                            "avg_value": avg_value})
+                            "avg_value": avg_value, "hi20": round(hi20, 2)})
         except:
             continue
     # 통과 후보만 수급 조회 (건수 적어 부담 없음)
@@ -476,7 +484,9 @@ def build_email(regime_on, regime_msg, sp_ret, nq_ret, sox_ret, us_date,
         track = p.get("track", "A")
         max_d = HOLD_DAYS if track == "A" else B_HOLD
         exit_txt = (f"{p.get('stop_price',0):,.0f}" if track == "A" else
-                    f"목표 {p.get('target_price',0):,.0f}") if not pending else "-"
+                    f"목표 {p.get('target_price',0):,.0f}" +
+                    (f"<br><span style='font-size:11px;color:#ffd54f;'>어깨 {p['target2_price']:,.0f}</span>" if p.get('target2_price') else "")
+                   ) if not pending else "-"
         badge = "" if track == "A" else " <span style='background:#123a5c;color:#7cc7ff;border-radius:4px;padding:1px 6px;font-size:10px;'>B</span>"
         pos_rows += f"""<tr>
           <td style="padding:8px;">{p['name']}{badge}<span style="color:#666;font-size:11px;"> {p['code']}</span></td>
@@ -519,16 +529,23 @@ def build_email(regime_on, regime_msg, sp_ret, nq_ret, sox_ret, us_date,
 
     # 트랙B 신규 매수 (초대형주 회귀)
     if new_entries_b:
+        def _b_t2(c):
+            if c.get('hi20') and c['hi20'] > c['close']:
+                t2 = min(c['close'] + B_TARGET2_FIB * (c['hi20'] - c['close']), c['close'] * (1 + B_TARGET2_CAP))
+                if t2 > c['close'] * (1 + B_TARGET):
+                    return f"""<br><span style="font-size:11px;color:#ffd54f;">어깨 {t2:,.0f}원</span>"""
+            return ""
         rows = "".join(f"""<tr>
           <td style="padding:8px;font-weight:bold;">{i}. {c['name']}<span style="color:#666;font-size:11px;"> {c['code']}</span></td>
           <td style="padding:8px;text-align:right;">{c['close']:,.0f}원</td>
           <td style="padding:8px;text-align:right;color:#7cc7ff;">RSI2 {c['rsi2']} · 외인20일 {('%+.1f%%' % c['flow20']) if c.get('flow20') is not None else 'N/A'}</td>
-          <td style="padding:8px;text-align:right;color:{g};">목표 {c['close']*(1+B_TARGET):,.0f}원</td>
+          <td style="padding:8px;text-align:right;color:{g};">목표 {c['close']*(1+B_TARGET):,.0f}원{_b_t2(c)}</td>
         </tr>""" for i, c in enumerate(new_entries_b, 1))
         buy_html += f"""<div style="background:#12233a;border:1px solid #2d6cdf;padding:14px;border-radius:8px;margin-bottom:14px;">
           <h3 style="color:#7cc7ff;margin:0 0 8px;">🔵 B트랙 매수 (초대형 과매도 회귀) — {len(new_entries_b)}종목</h3>
           <table style="width:100%;border-collapse:collapse;font-size:13px;color:#ddd;">{rows}</table>
-          <p style="color:#889;font-size:12px;margin:8px 0 0;">※ 내일 시가 매수 후 <b>+{B_TARGET*100:.0f}% 지정가 매도</b> 예약 · 미체결 시 {B_HOLD}거래일째 종가 매도 · 손절 없음(승률 74% 검증) · 외인 20일 강매도 종목 자동제외, 매집순 랭킹</p></div>"""
+          <p style="color:#889;font-size:12px;margin:8px 0 0;">※ 내일 시가 매수 후 <b>+{B_TARGET*100:.0f}% 지정가 매도</b> 예약 · 미체결 시 {B_HOLD}거래일째 종가 매도 · 손절 없음(승률 74% 검증) · 외인 20일 강매도 종목 자동제외, 매집순 랭킹<br>
+          ※ <b>어깨(2차)</b>=20일 고점까지 낙폭의 61.8% 되돌림(상한 +{B_TARGET2_CAP*100:.0f}%), 15일 내 도달률 51% 실측 — <b>참고선일 뿐, 자동매도는 +{B_TARGET*100:.0f}%</b>. 장이 좋을 때 절반 홀딩 판단용</p></div>"""
 
     # 대기 후보
     watch_html = ""
@@ -658,6 +675,7 @@ def main():
                 "code": c["code"], "name": c["name"], "track": "B",
                 "entry_date": today_str, "entry_price": None,
                 "ref_close": c["close"], "target_price": None,
+                "hi20": c.get("hi20"),
             })
             new_entries_b.append(c)
         print(f"B트랙 신규 {len(new_entries_b)}개 (빈슬롯 {empty_b})")

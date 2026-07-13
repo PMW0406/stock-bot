@@ -253,7 +253,10 @@ with tab1:
                         f'<div><span class="metric">RSI(2) <b>{c["rsi2"]}</b></span>'
                         f'<span class="metric">외인 20일수급 <b style="color:{flow_col};">{flow}</b></span>'
                         f'<span class="metric">200일선 <b>{c["ma200_dist"]:+.1f}%</b></span>'
-                        f'<span class="metric">목표 <b style="color:#4ade80;">{c["close"]*1.05:,.0f}원</b></span></div>'
+                        f'<span class="metric">목표 <b style="color:#4ade80;">{c["close"]*1.05:,.0f}원</b></span>'
+                        + (f'<span class="metric">어깨(2차) <b style="color:#ffd54f;">{min(c["close"]+0.618*(c["hi20"]-c["close"]), c["close"]*1.12):,.0f}원</b></span>'
+                           if c.get("hi20") and min(c["close"]+0.618*(c["hi20"]-c["close"]), c["close"]*1.12) > c["close"]*1.05 else '')
+                        + f'</div>'
                         f'</div>', unsafe_allow_html=True)
         else:
             st.info("이전 버전(v13) 결과 파일입니다. 내일 아침 봇 실행 후 v14 형식으로 갱신됩니다.")
@@ -381,6 +384,8 @@ with tab2:
                 barw = min(int(held / max_d * 100), 100)
                 stop_txt = (f"목표 {p['target_price']:,.0f}원" if is_b and p.get("target_price")
                             else f"{p['stop_price']:,.0f}원" if p.get("stop_price") else "-")
+                if is_b and p.get("target2_price"):
+                    stop_txt += f'<div style="color:#ffd54f;font-size:11px;margin-top:2px;">어깨(2차) {p["target2_price"]:,.0f}원</div>'
                 ptag = '<span class="tag" style="background:#4a3800;color:#ffc107;margin-left:8px;">체결대기</span>' if pending else ""
                 if is_b:
                     ptag += '<span class="tag" style="background:#123a5c;color:#7cc7ff;margin-left:8px;">B 회귀</span>'
