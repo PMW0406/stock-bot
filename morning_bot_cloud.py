@@ -513,8 +513,8 @@ def build_email(regime_on, regime_msg, sp_ret, nq_ret, sox_ret, us_date,
         track = p.get("track", "A")
         max_d = HOLD_DAYS if track == "A" else B_HOLD
         exit_txt = (f"{p.get('stop_price',0):,.0f}" if track == "A" else
-                    f"목표 {p.get('target_price',0):,.0f}" +
-                    (f"<br><span style='font-size:11px;color:#ffd54f;'>2차 {p['target2_price']:,.0f}</span>" if p.get('target2_price') else "")
+                    f"목표 {p.get('target_price',0):,.0f} (+{B_TARGET*100:.0f}%)" +
+                    (f"<br><span style='font-size:11px;color:#ffd54f;'>2차 {p['target2_price']:,.0f} (+{(p['target2_price']/p['entry_price']-1)*100:.1f}%)</span>" if p.get('target2_price') else "")
                    ) if not pending else "-"
         badge = "" if track == "A" else " <span style='background:#123a5c;color:#7cc7ff;border-radius:4px;padding:1px 6px;font-size:10px;'>B</span>"
         pos_rows += f"""<tr>
@@ -562,13 +562,13 @@ def build_email(regime_on, regime_msg, sp_ret, nq_ret, sox_ret, us_date,
             if c.get('hi20') and c['hi20'] > c['close']:
                 t2 = min(c['close'] + B_TARGET2_FIB * (c['hi20'] - c['close']), c['close'] * (1 + B_TARGET2_CAP))
                 if t2 > c['close'] * (1 + B_TARGET):
-                    return f"""<br><span style="font-size:11px;color:#ffd54f;">2차 {t2:,.0f}원</span>"""
+                    return f"""<br><span style="font-size:11px;color:#ffd54f;">2차 {t2:,.0f}원 (+{(t2/c['close']-1)*100:.1f}%)</span>"""
             return ""
         rows = "".join(f"""<tr>
           <td style="padding:8px;font-weight:bold;">{i}. {c['name']}<span style="color:#666;font-size:11px;"> {c['code']}</span></td>
           <td style="padding:8px;text-align:right;">{c['close']:,.0f}원</td>
           <td style="padding:8px;text-align:right;color:#7cc7ff;">RSI2 {c['rsi2']} · 외인20일 {('%+.1f%%' % c['flow20']) if c.get('flow20') is not None else 'N/A'}</td>
-          <td style="padding:8px;text-align:right;color:{g};">목표 {c['close']*(1+B_TARGET):,.0f}원{_b_t2(c)}</td>
+          <td style="padding:8px;text-align:right;color:{g};">목표 {c['close']*(1+B_TARGET):,.0f}원 (+{B_TARGET*100:.0f}%){_b_t2(c)}</td>
         </tr>""" for i, c in enumerate(new_entries_b, 1))
         buy_html += f"""<div style="background:#12233a;border:1px solid #2d6cdf;padding:14px;border-radius:8px;margin-bottom:14px;">
           <h3 style="color:#7cc7ff;margin:0 0 8px;">🔵 B트랙 매수 (초대형 과매도 회귀) — {len(new_entries_b)}종목</h3>

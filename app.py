@@ -437,8 +437,9 @@ with tab2:
                 barw = min(int(held / max_d * 100), 100)
                 stop_txt = (f"목표 {p['target_price']:,.0f}원" if is_b and p.get("target_price")
                             else f"{p['stop_price']:,.0f}원" if p.get("stop_price") else "-")
-                if is_b and p.get("target2_price"):
-                    stop_txt += f'<div style="color:#ffd54f;font-size:11px;margin-top:2px;">2차 {p["target2_price"]:,.0f}원</div>'
+                if is_b and p.get("target2_price") and p.get("entry_price"):
+                    t2p = (p["target2_price"] / p["entry_price"] - 1) * 100
+                    stop_txt += f'<div style="color:#ffd54f;font-size:11px;margin-top:2px;">2차 {p["target2_price"]:,.0f}원 (+{t2p:.1f}%)</div>'
                 ptag = '<span class="tag" style="background:#4a3800;color:#ffc107;margin-left:8px;">체결대기</span>' if pending else ""
                 if is_b:
                     ptag += '<span class="tag" style="background:#123a5c;color:#7cc7ff;margin-left:8px;">B 회귀</span>'
@@ -490,10 +491,12 @@ with tab2:
                     tgt_html = ""
                     if c.get("t1"):
                         m1 = ("<span style='color:#4ade80;'>✓</span>" if c.get("hit1") else "<span style='color:#556;'>✗</span>")
-                        tgt_html = f" &nbsp;·&nbsp; 1차 {c['t1']:,.0f} {m1}"
+                        p1 = (c["t1"] / c["entry_price"] - 1) * 100
+                        tgt_html = f" &nbsp;·&nbsp; 1차 {c['t1']:,.0f} (+{p1:.0f}%) {m1}"
                         if c.get("t2"):
                             m2 = ("<span style='color:#4ade80;'>✓</span>" if c.get("hit2") else "<span style='color:#556;'>✗</span>")
-                            tgt_html += f" &nbsp;·&nbsp; 2차 {c['t2']:,.0f} {m2}"
+                            p2 = (c["t2"] / c["entry_price"] - 1) * 100
+                            tgt_html += f" &nbsp;·&nbsp; 2차 {c['t2']:,.0f} (+{p2:.0f}%) {m2}"
                     st.markdown(f"""
 <div class="stock-card" style="padding:12px 18px;">
   <div style="display:flex;justify-content:space-between;align-items:center;">
