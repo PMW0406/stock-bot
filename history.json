@@ -1,6 +1,6 @@
 {
   "format": "v14",
-  "backfilled": "v14.8 2026-04-06~2026-07-07",
+  "backfilled": "v14.9 2026-04-06~2026-07-06",
   "positions": [
     {
       "code": "307950",
@@ -50,10 +50,14 @@
       "track": "B",
       "entry_date": "2026-04-07",
       "entry_price": 167300.0,
-      "exit_date": "2026-04-07",
-      "exit_price": 172319.0,
-      "ret_pct": 3.0,
-      "reason": "목표 +3%"
+      "exit_date": "2026-04-08",
+      "exit_price": 175665.0,
+      "ret_pct": 5.0,
+      "reason": "목표 +5%",
+      "t1": 175665.0,
+      "t2": 187376.0,
+      "hit1": true,
+      "hit2": false
     },
     {
       "code": "138930",
@@ -61,10 +65,14 @@
       "track": "B",
       "entry_date": "2026-04-08",
       "entry_price": 17910.0,
-      "exit_date": "2026-04-10",
-      "exit_price": 18447.3,
-      "ret_pct": 3.0,
-      "reason": "목표 +3%"
+      "exit_date": "2026-04-14",
+      "exit_price": 18805.5,
+      "ret_pct": 5.0,
+      "reason": "목표 +5%",
+      "t1": 18805.5,
+      "t2": 18923.52,
+      "hit1": true,
+      "hit2": false
     },
     {
       "code": "950160",
@@ -73,9 +81,13 @@
       "entry_date": "2026-04-14",
       "entry_price": 95900.0,
       "exit_date": "2026-04-15",
-      "exit_price": 98777.0,
-      "ret_pct": 3.0,
-      "reason": "목표 +3%"
+      "exit_price": 100695.0,
+      "ret_pct": 5.0,
+      "reason": "목표 +5%",
+      "t1": 100695.0,
+      "t2": 107408.0,
+      "hit1": true,
+      "hit2": false
     },
     {
       "code": "161390",
@@ -83,21 +95,29 @@
       "track": "B",
       "entry_date": "2026-04-20",
       "entry_price": 60600.0,
-      "exit_date": "2026-04-21",
-      "exit_price": 62418.0,
-      "ret_pct": 3.0,
-      "reason": "목표 +3%"
+      "exit_date": "2026-04-22",
+      "exit_price": 63630.0,
+      "ret_pct": 5.0,
+      "reason": "목표 +5%",
+      "t1": 63630.0,
+      "t2": null,
+      "hit1": true,
+      "hit2": false
     },
     {
       "code": "010950",
       "name": "S-Oil",
       "track": "B",
-      "entry_date": "2026-04-22",
-      "entry_price": 115500.0,
+      "entry_date": "2026-04-23",
+      "entry_price": 115400.0,
       "exit_date": "2026-04-23",
-      "exit_price": 118965.0,
-      "ret_pct": 3.0,
-      "reason": "목표 +3%"
+      "exit_price": 121170.0,
+      "ret_pct": 5.0,
+      "reason": "목표 +5%",
+      "t1": 121170.0,
+      "t2": null,
+      "hit1": true,
+      "hit2": false
     },
     {
       "code": "012450",
@@ -106,9 +126,13 @@
       "entry_date": "2026-04-20",
       "entry_price": 1447000.0,
       "exit_date": "2026-04-24",
-      "exit_price": 1490410.0,
-      "ret_pct": 3.0,
-      "reason": "목표 +3%"
+      "exit_price": 1519350.0,
+      "ret_pct": 5.0,
+      "reason": "목표 +5%",
+      "t1": 1519350.0,
+      "t2": 1523014.0,
+      "hit1": true,
+      "hit2": true
     },
     {
       "code": "028300",
@@ -117,9 +141,13 @@
       "entry_date": "2026-04-24",
       "entry_price": 59200.0,
       "exit_date": "2026-04-27",
-      "exit_price": 60976.0,
-      "ret_pct": 3.0,
-      "reason": "목표 +3%"
+      "exit_price": 62160.0,
+      "ret_pct": 5.0,
+      "reason": "목표 +5%",
+      "t1": 62160.0,
+      "t2": 64947.4,
+      "hit1": true,
+      "hit2": false
     },
     {
       "code": "200710",
@@ -130,18 +158,86 @@
       "exit_date": "2026-04-30",
       "exit_price": 52300.0,
       "ret_pct": -11.8,
-      "reason": "손절 -10%(종가)"
+      "reason": "손절 -10%(종가)",
+      "t1": 64637.0,
+      "t2": 68788.0,
+      "hit1": false,
+      "hit2": false
     },
     {
-      "code": "047810",
-      "name": "한국항공우주",
-      "track": "B",
-      "entry_date": "2026-04-20",
-      "entry_price": 188600.0,
-      "exit_date": "2026-05-04",
-      "exit_price": 180000.0,
-      "ret_pct": -4.56,
-      "reason": "10일 만기(B)"
+      "code": "356860",
+      "name": "티엘비",
+      "track": "A",
+      "entry_date": "2026-04-16",
+      "entry_price": 75852.0,
+      "exit_date": "2026-05-08",
+      "exit_price": 96332.0,
+      "ret_pct": 27.0,
+      "reason": "15일 만기",
+      "t1": 82678.68,
+      "t2": 87988.32,
+      "hit1": true,
+      "hit2": true
+    },
+    {
+      "code": "131290",
+      "name": "티에스이",
+      "track": "A",
+      "entry_date": "2026-04-16",
+      "entry_price": 143800.0,
+      "exit_date": "2026-05-08",
+      "exit_price": 174700.0,
+      "ret_pct": 21.49,
+      "reason": "15일 만기",
+      "t1": 156742.0,
+      "t2": 166808.0,
+      "hit1": true,
+      "hit2": true
+    },
+    {
+      "code": "166090",
+      "name": "하나머티리얼즈",
+      "track": "A",
+      "entry_date": "2026-04-16",
+      "entry_price": 69800.0,
+      "exit_date": "2026-05-08",
+      "exit_price": 80000.0,
+      "ret_pct": 14.61,
+      "reason": "15일 만기",
+      "t1": 76082.0,
+      "t2": 80968.0,
+      "hit1": true,
+      "hit2": true
+    },
+    {
+      "code": "083500",
+      "name": "에프엔에스테크",
+      "track": "A",
+      "entry_date": "2026-04-16",
+      "entry_price": 19130.0,
+      "exit_date": "2026-05-08",
+      "exit_price": 20250.0,
+      "ret_pct": 5.85,
+      "reason": "15일 만기",
+      "t1": 20851.7,
+      "t2": 22190.8,
+      "hit1": true,
+      "hit2": true
+    },
+    {
+      "code": "160980",
+      "name": "싸이맥스",
+      "track": "A",
+      "entry_date": "2026-04-16",
+      "entry_price": 28200.0,
+      "exit_date": "2026-05-08",
+      "exit_price": 37050.0,
+      "ret_pct": 31.38,
+      "reason": "15일 만기",
+      "t1": 30738.0,
+      "t2": 32712.0,
+      "hit1": true,
+      "hit2": true
     },
     {
       "code": "001340",
@@ -152,18 +248,11 @@
       "exit_date": "2026-05-08",
       "exit_price": 6990.0,
       "ret_pct": -10.84,
-      "reason": "손절 -10%(종가)"
-    },
-    {
-      "code": "237690",
-      "name": "에스티팜",
-      "track": "A",
-      "entry_date": "2026-04-29",
-      "entry_price": 166100.0,
-      "exit_date": "2026-05-11",
-      "exit_price": 146000.0,
-      "ret_pct": -12.1,
-      "reason": "손절 -10%(종가)"
+      "reason": "손절 -10%(종가)",
+      "t1": 8545.6,
+      "t2": 9094.4,
+      "hit1": false,
+      "hit2": false
     },
     {
       "code": "213420",
@@ -174,7 +263,26 @@
       "exit_date": "2026-05-12",
       "exit_price": 49400.0,
       "ret_pct": -10.18,
-      "reason": "손절 -10%(종가)"
+      "reason": "손절 -10%(종가)",
+      "t1": 59950.0,
+      "t2": 63800.0,
+      "hit1": false,
+      "hit2": false
+    },
+    {
+      "code": "047810",
+      "name": "한국항공우주",
+      "track": "B",
+      "entry_date": "2026-04-20",
+      "entry_price": 188600.0,
+      "exit_date": "2026-05-12",
+      "exit_price": 165900.0,
+      "ret_pct": -12.04,
+      "reason": "15일 만기(B)",
+      "t1": 198030.0,
+      "t2": 199044.2,
+      "hit1": false,
+      "hit2": false
     },
     {
       "code": "450080",
@@ -185,18 +293,11 @@
       "exit_date": "2026-05-12",
       "exit_price": 71700.0,
       "ret_pct": -13.41,
-      "reason": "손절 -10%(종가)"
-    },
-    {
-      "code": "032640",
-      "name": "LG유플러스",
-      "track": "B",
-      "entry_date": "2026-04-27",
-      "entry_price": 16670.0,
-      "exit_date": "2026-05-12",
-      "exit_price": 15730.0,
-      "ret_pct": -5.64,
-      "reason": "10일 만기(B)"
+      "reason": "손절 -10%(종가)",
+      "t1": 90252.0,
+      "t2": 96048.0,
+      "hit1": false,
+      "hit2": false
     },
     {
       "code": "001390",
@@ -207,29 +308,11 @@
       "exit_date": "2026-05-13",
       "exit_price": 5430.0,
       "ret_pct": -10.1,
-      "reason": "손절 -10%(종가)"
-    },
-    {
-      "code": "272210",
-      "name": "한화시스템",
-      "track": "B",
-      "entry_date": "2026-04-28",
-      "entry_price": 126000.0,
-      "exit_date": "2026-05-13",
-      "exit_price": 109600.0,
-      "ret_pct": -13.02,
-      "reason": "10일 만기(B)"
-    },
-    {
-      "code": "036890",
-      "name": "진성티이씨",
-      "track": "A",
-      "entry_date": "2026-05-06",
-      "entry_price": 19480.0,
-      "exit_date": "2026-05-13",
-      "exit_price": 17440.0,
-      "ret_pct": -10.47,
-      "reason": "손절 -10%(종가)"
+      "reason": "손절 -10%(종가)",
+      "t1": 6583.6,
+      "t2": 7006.4,
+      "hit1": true,
+      "hit2": true
     },
     {
       "code": "170920",
@@ -240,29 +323,11 @@
       "exit_date": "2026-05-14",
       "exit_price": 44850.0,
       "ret_pct": 25.98,
-      "reason": "15일 만기"
-    },
-    {
-      "code": "005830",
-      "name": "DB손해보험",
-      "track": "B",
-      "entry_date": "2026-05-06",
-      "entry_price": 165200.0,
-      "exit_date": "2026-05-14",
-      "exit_price": 170156.0,
-      "ret_pct": 3.0,
-      "reason": "목표 +3%"
-    },
-    {
-      "code": "271560",
-      "name": "오리온",
-      "track": "B",
-      "entry_date": "2026-05-14",
-      "entry_price": 137300.0,
-      "exit_date": "2026-05-14",
-      "exit_price": 141419.0,
-      "ret_pct": 3.0,
-      "reason": "목표 +3%"
+      "reason": "15일 만기",
+      "t1": 38804.0,
+      "t2": 41296.0,
+      "hit1": true,
+      "hit2": true
     },
     {
       "code": "002020",
@@ -273,40 +338,26 @@
       "exit_date": "2026-05-15",
       "exit_price": 64700.0,
       "ret_pct": -11.61,
-      "reason": "손절 -10%(종가)"
+      "reason": "손절 -10%(종가)",
+      "t1": 79788.0,
+      "t2": 84912.0,
+      "hit1": true,
+      "hit2": true
     },
     {
-      "code": "096770",
-      "name": "SK이노베이션",
+      "code": "032640",
+      "name": "LG유플러스",
       "track": "B",
-      "entry_date": "2026-05-13",
-      "entry_price": 131000.0,
-      "exit_date": "2026-05-15",
-      "exit_price": 134930.0,
-      "ret_pct": 3.0,
-      "reason": "목표 +3%"
-    },
-    {
-      "code": "003670",
-      "name": "포스코퓨처엠",
-      "track": "B",
-      "entry_date": "2026-05-15",
-      "entry_price": 252500.0,
-      "exit_date": "2026-05-15",
-      "exit_price": 260075.0,
-      "ret_pct": 3.0,
-      "reason": "목표 +3%"
-    },
-    {
-      "code": "034730",
-      "name": "SK",
-      "track": "B",
-      "entry_date": "2026-05-18",
-      "entry_price": 505000.0,
-      "exit_date": "2026-05-18",
-      "exit_price": 520150.0,
-      "ret_pct": 3.0,
-      "reason": "목표 +3%"
+      "entry_date": "2026-04-27",
+      "entry_price": 16670.0,
+      "exit_date": "2026-05-19",
+      "exit_price": 15560.0,
+      "ret_pct": -6.66,
+      "reason": "15일 만기(B)",
+      "t1": 17503.5,
+      "t2": 17800.94,
+      "hit1": false,
+      "hit2": false
     },
     {
       "code": "319660",
@@ -317,40 +368,41 @@
       "exit_date": "2026-05-20",
       "exit_price": 107000.0,
       "ret_pct": 18.1,
-      "reason": "15일 만기"
+      "reason": "15일 만기",
+      "t1": 98754.0,
+      "t2": 105096.0,
+      "hit1": true,
+      "hit2": true
+    },
+    {
+      "code": "272210",
+      "name": "한화시스템",
+      "track": "B",
+      "entry_date": "2026-04-28",
+      "entry_price": 126000.0,
+      "exit_date": "2026-05-20",
+      "exit_price": 101600.0,
+      "ret_pct": -19.37,
+      "reason": "15일 만기(B)",
+      "t1": 132300.0,
+      "t2": 133972.2,
+      "hit1": false,
+      "hit2": false
     },
     {
       "code": "000880",
       "name": "한화",
       "track": "B",
-      "entry_date": "2026-05-19",
-      "entry_price": 127100.0,
+      "entry_date": "2026-05-20",
+      "entry_price": 123200.0,
       "exit_date": "2026-05-21",
-      "exit_price": 130913.0,
-      "ret_pct": 3.0,
-      "reason": "목표 +3%"
-    },
-    {
-      "code": "010950",
-      "name": "S-Oil",
-      "track": "B",
-      "entry_date": "2026-05-22",
-      "entry_price": 108300.0,
-      "exit_date": "2026-05-26",
-      "exit_price": 111549.0,
-      "ret_pct": 3.0,
-      "reason": "목표 +3%"
-    },
-    {
-      "code": "037460",
-      "name": "삼지전자",
-      "track": "A",
-      "entry_date": "2026-05-06",
-      "entry_price": 34650.0,
-      "exit_date": "2026-05-27",
-      "exit_price": 47500.0,
-      "ret_pct": 37.09,
-      "reason": "15일 만기"
+      "exit_price": 129360.0,
+      "ret_pct": 5.0,
+      "reason": "목표 +5%",
+      "t1": 129360.0,
+      "t2": 137984.0,
+      "hit1": true,
+      "hit2": false
     },
     {
       "code": "100120",
@@ -361,29 +413,26 @@
       "exit_date": "2026-05-27",
       "exit_price": 28650.0,
       "ret_pct": -10.19,
-      "reason": "손절 -10%(종가)"
+      "reason": "손절 -10%(종가)",
+      "t1": 34771.0,
+      "t2": 37004.0,
+      "hit1": true,
+      "hit2": false
     },
     {
-      "code": "034020",
-      "name": "두산에너빌리티",
-      "track": "B",
-      "entry_date": "2026-05-15",
-      "entry_price": 118800.0,
+      "code": "187790",
+      "name": "나노",
+      "track": "A",
+      "entry_date": "2026-05-26",
+      "entry_price": 7140.0,
       "exit_date": "2026-05-29",
-      "exit_price": 105600.0,
-      "ret_pct": -11.11,
-      "reason": "10일 만기(B)"
-    },
-    {
-      "code": "096770",
-      "name": "SK이노베이션",
-      "track": "B",
-      "entry_date": "2026-05-18",
-      "entry_price": 124900.0,
-      "exit_date": "2026-06-01",
-      "exit_price": 116200.0,
-      "ret_pct": -6.97,
-      "reason": "10일 만기(B)"
+      "exit_price": 6410.0,
+      "ret_pct": -10.22,
+      "reason": "손절 -10%(종가)",
+      "t1": 7782.6,
+      "t2": 8282.4,
+      "hit1": false,
+      "hit2": false
     },
     {
       "code": "007070",
@@ -394,73 +443,41 @@
       "exit_date": "2026-06-04",
       "exit_price": 23400.0,
       "ret_pct": -9.65,
-      "reason": "15일 만기"
+      "reason": "15일 만기",
+      "t1": 28231.0,
+      "t2": 30044.0,
+      "hit1": true,
+      "hit2": false
     },
     {
-      "code": "078930",
-      "name": "GS",
+      "code": "096770",
+      "name": "SK이노베이션",
       "track": "B",
-      "entry_date": "2026-06-01",
-      "entry_price": 72400.0,
+      "entry_date": "2026-05-13",
+      "entry_price": 131000.0,
       "exit_date": "2026-06-04",
-      "exit_price": 74572.0,
-      "ret_pct": 3.0,
-      "reason": "목표 +3%"
+      "exit_price": 116800.0,
+      "ret_pct": -10.84,
+      "reason": "15일 만기(B)",
+      "t1": 137550.0,
+      "t2": 146079.2,
+      "hit1": false,
+      "hit2": false
     },
     {
-      "code": "271560",
-      "name": "오리온",
+      "code": "010950",
+      "name": "S-Oil",
       "track": "B",
-      "entry_date": "2026-06-02",
-      "entry_price": 127400.0,
+      "entry_date": "2026-05-22",
+      "entry_price": 108300.0,
       "exit_date": "2026-06-04",
-      "exit_price": 131222.0,
-      "ret_pct": 3.0,
-      "reason": "목표 +3%"
-    },
-    {
-      "code": "033780",
-      "name": "KT&G",
-      "track": "B",
-      "entry_date": "2026-06-05",
-      "entry_price": 179600.0,
-      "exit_date": "2026-06-09",
-      "exit_price": 184988.0,
-      "ret_pct": 3.0,
-      "reason": "목표 +3%"
-    },
-    {
-      "code": "005830",
-      "name": "DB손해보험",
-      "track": "B",
-      "entry_date": "2026-05-27",
-      "entry_price": 148200.0,
-      "exit_date": "2026-06-10",
-      "exit_price": 142500.0,
-      "ret_pct": -3.85,
-      "reason": "10일 만기(B)"
-    },
-    {
-      "code": "003490",
-      "name": "대한항공",
-      "track": "B",
-      "entry_date": "2026-06-05",
-      "entry_price": 25000.0,
-      "exit_date": "2026-06-10",
-      "exit_price": 25750.0,
-      "ret_pct": 3.0,
-      "reason": "목표 +3%"
-    },
-    {
-      "code": "000150",
-      "name": "두산",
-      "track": "B",
-      "entry_date": "2026-06-10",
-      "entry_price": 1550000.0,
-      "exit_date": "2026-06-10",
-      "exit_price": 1596500.0,
-      "ret_pct": 3.0,
-      "reason": "목표 +3%"
+      "exit_price": 113715.0,
+      "ret_pct": 5.0,
+      "reason": "목표 +5%",
+      "t1": 113715.0,
+      "t2": 121296.0,
+      "hit1": true,
+      "hit2": false
     },
     {
       "code": "214320",
@@ -471,62 +488,71 @@
       "exit_date": "2026-06-11",
       "exit_price": 20600.0,
       "ret_pct": -3.74,
-      "reason": "15일 만기"
+      "reason": "15일 만기",
+      "t1": 23326.0,
+      "t2": 24824.0,
+      "hit1": false,
+      "hit2": false
     },
     {
-      "code": "454910",
-      "name": "두산로보틱스",
+      "code": "047050",
+      "name": "포스코인터내셔널",
       "track": "B",
-      "entry_date": "2026-06-11",
-      "entry_price": 101100.0,
-      "exit_date": "2026-06-11",
-      "exit_price": 104133.0,
-      "ret_pct": 3.0,
-      "reason": "목표 +3%"
-    },
-    {
-      "code": "036570",
-      "name": "NC",
-      "track": "B",
-      "entry_date": "2026-06-11",
-      "entry_price": 247500.0,
-      "exit_date": "2026-06-11",
-      "exit_price": 254925.0,
-      "ret_pct": 3.0,
-      "reason": "목표 +3%"
-    },
-    {
-      "code": "034220",
-      "name": "LG디스플레이",
-      "track": "B",
-      "entry_date": "2026-06-11",
-      "entry_price": 12680.0,
+      "entry_date": "2026-05-21",
+      "entry_price": 69000.0,
       "exit_date": "2026-06-12",
-      "exit_price": 13060.4,
-      "ret_pct": 3.0,
-      "reason": "목표 +3%"
+      "exit_price": 59400.0,
+      "ret_pct": -13.91,
+      "reason": "15일 만기(B)",
+      "t1": 72450.0,
+      "t2": 77280.0,
+      "hit1": false,
+      "hit2": false
+    },
+    {
+      "code": "033780",
+      "name": "KT&G",
+      "track": "B",
+      "entry_date": "2026-06-05",
+      "entry_price": 179600.0,
+      "exit_date": "2026-06-12",
+      "exit_price": 188580.0,
+      "ret_pct": 5.0,
+      "reason": "목표 +5%",
+      "t1": 188580.0,
+      "t2": null,
+      "hit1": true,
+      "hit2": false
+    },
+    {
+      "code": "003490",
+      "name": "대한항공",
+      "track": "B",
+      "entry_date": "2026-06-05",
+      "entry_price": 25000.0,
+      "exit_date": "2026-06-12",
+      "exit_price": 26250.0,
+      "ret_pct": 5.0,
+      "reason": "목표 +5%",
+      "t1": 26250.0,
+      "t2": 27101.2,
+      "hit1": true,
+      "hit2": true
     },
     {
       "code": "064400",
       "name": "LG씨엔에스",
       "track": "B",
-      "entry_date": "2026-06-12",
-      "entry_price": 97200.0,
+      "entry_date": "2026-06-15",
+      "entry_price": 96800.0,
       "exit_date": "2026-06-15",
-      "exit_price": 100116.0,
-      "ret_pct": 3.0,
-      "reason": "목표 +3%"
-    },
-    {
-      "code": "005380",
-      "name": "현대차",
-      "track": "B",
-      "entry_date": "2026-06-12",
-      "entry_price": 635000.0,
-      "exit_date": "2026-06-15",
-      "exit_price": 654050.0,
-      "ret_pct": 3.0,
-      "reason": "목표 +3%"
+      "exit_price": 101640.0,
+      "ret_pct": 5.0,
+      "reason": "목표 +5%",
+      "t1": 101640.0,
+      "t2": 108416.0,
+      "hit1": true,
+      "hit2": false
     },
     {
       "code": "011070",
@@ -535,9 +561,28 @@
       "entry_date": "2026-06-15",
       "entry_price": 1091000.0,
       "exit_date": "2026-06-15",
-      "exit_price": 1123730.0,
-      "ret_pct": 3.0,
-      "reason": "목표 +3%"
+      "exit_price": 1145550.0,
+      "ret_pct": 5.0,
+      "reason": "목표 +5%",
+      "t1": 1145550.0,
+      "t2": 1221920.0,
+      "hit1": true,
+      "hit2": true
+    },
+    {
+      "code": "003550",
+      "name": "LG",
+      "track": "B",
+      "entry_date": "2026-06-15",
+      "entry_price": 109400.0,
+      "exit_date": "2026-06-15",
+      "exit_price": 114870.0,
+      "ret_pct": 5.0,
+      "reason": "목표 +5%",
+      "t1": 114870.0,
+      "t2": 122528.0,
+      "hit1": true,
+      "hit2": false
     },
     {
       "code": "031980",
@@ -548,7 +593,11 @@
       "exit_date": "2026-06-16",
       "exit_price": 123200.0,
       "ret_pct": -17.87,
-      "reason": "손절 -10%(종가)"
+      "reason": "손절 -10%(종가)",
+      "t1": 163500.0,
+      "t2": 174000.0,
+      "hit1": false,
+      "hit2": false
     },
     {
       "code": "010950",
@@ -556,32 +605,14 @@
       "track": "B",
       "entry_date": "2026-06-19",
       "entry_price": 105500.0,
-      "exit_date": "2026-06-24",
-      "exit_price": 108665.0,
-      "ret_pct": 3.0,
-      "reason": "목표 +3%"
-    },
-    {
-      "code": "161390",
-      "name": "한국타이어앤테크놀로지",
-      "track": "B",
-      "entry_date": "2026-06-19",
-      "entry_price": 66200.0,
       "exit_date": "2026-07-02",
-      "exit_price": 67300.0,
-      "ret_pct": 1.66,
-      "reason": "10일 만기(B)"
-    },
-    {
-      "code": "454910",
-      "name": "두산로보틱스",
-      "track": "B",
-      "entry_date": "2026-06-19",
-      "entry_price": 102400.0,
-      "exit_date": "2026-07-02",
-      "exit_price": 83300.0,
-      "ret_pct": -18.65,
-      "reason": "10일 만기(B)"
+      "exit_price": 110775.0,
+      "ret_pct": 5.0,
+      "reason": "목표 +5%",
+      "t1": 110775.0,
+      "t2": 112545.2,
+      "hit1": true,
+      "hit2": false
     },
     {
       "code": "042700",
@@ -590,20 +621,28 @@
       "entry_date": "2026-07-03",
       "entry_price": 217000.0,
       "exit_date": "2026-07-03",
-      "exit_price": 223510.0,
-      "ret_pct": 3.0,
-      "reason": "목표 +3%"
+      "exit_price": 227850.0,
+      "ret_pct": 5.0,
+      "reason": "목표 +5%",
+      "t1": 227850.0,
+      "t2": 243040.0,
+      "hit1": true,
+      "hit2": false
     },
     {
-      "code": "032830",
-      "name": "삼성생명",
+      "code": "161390",
+      "name": "한국타이어앤테크놀로지",
       "track": "B",
-      "entry_date": "2026-07-03",
-      "entry_price": 368500.0,
-      "exit_date": "2026-07-03",
-      "exit_price": 379555.0,
-      "ret_pct": 3.0,
-      "reason": "목표 +3%"
+      "entry_date": "2026-06-19",
+      "entry_price": 66200.0,
+      "exit_date": "2026-07-06",
+      "exit_price": 69510.0,
+      "ret_pct": 5.0,
+      "reason": "목표 +5%",
+      "t1": 69510.0,
+      "t2": 72256.4,
+      "hit1": true,
+      "hit2": false
     },
     {
       "code": "058470",
@@ -614,7 +653,11 @@
       "exit_date": "2026-07-08",
       "exit_price": 69200.0,
       "ret_pct": -21.27,
-      "reason": "10일 만기(B)"
+      "reason": "10일 만기(B)",
+      "t1": 92295.0,
+      "t2": 98448.0,
+      "hit1": false,
+      "hit2": false
     },
     {
       "code": "004170",
@@ -625,7 +668,11 @@
       "exit_date": "2026-07-10",
       "exit_price": 657300.0,
       "ret_pct": 5.0,
-      "reason": "목표 +5%"
+      "reason": "목표 +5%",
+      "t1": 657300.0,
+      "t2": 701120.0,
+      "hit1": true,
+      "hit2": false
     }
   ],
   "legacy": [
