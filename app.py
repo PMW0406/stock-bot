@@ -36,6 +36,24 @@ REGIME_MA         = 120
 BASE = os.path.dirname(__file__)
 
 
+def _now_kst():
+    return datetime.utcnow() + timedelta(hours=9)
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def live_quote(code):
+    """(오늘시가, 최근가, 오늘장데이터여부) — 후보 카드 사다리용, 5분 캐시"""
+    try:
+        df = fdr.DataReader(code, (_now_kst() - timedelta(days=10)).strftime("%Y-%m-%d"))
+        if df.empty:
+            return None, None, False
+        is_today = pd.Timestamp(df.index[-1]).strftime("%Y-%m-%d") == _now_kst().strftime("%Y-%m-%d")
+        o = float(df["Open"].iloc[-1]) if is_today else None
+        return o, float(df["Close"].iloc[-1]), is_today
+    except Exception:
+        return None, None, False
+
+
 @st.cache_data
 def load_stock_list():
     path = os.path.join(BASE, "stock_list.json")
@@ -210,24 +228,33 @@ with tab1:
             cands = saved.get("candidates", [])
             newset = set(saved.get("new_entries", []))
             if cands:
-                for c in cands:
-                    isbuy = c["code"] in newset
-                    buy_pill = '<span class="pill" style="background:#00c853;color:#08210f;">🎯 오늘 매수</span>' if isbuy else ''
-                    earn_pill = ''
-                    if c.get("earn") == "GOOD":
-                        yy = c.get("earn_yoy")
-                        earn_pill = f'<span class="pill" style="background:#3b2a06;color:#ffc107;">🚀 실적 {"+%.0f%%" % yy if yy is not None else "흑자전환"} · 비중1.5x</span>'
-                    st.markdown(
-                        f'<div class="cand-card{" buy" if isbuy else ""}">'
-                        f'<div style="display:flex;justify-content:space-between;align-items:center;">'
-                        f'<div><span class="cand-name">{c["name"]}</span><span class="cand-code">{c["code"]}</span>{buy_pill}{earn_pill}</div>'
-                        f'<div style="font-size:17px;font-weight:700;color:#e2e8f0;">{c["close"]:,.0f}<span style="font-size:12px;color:#718096;">원</span></div>'
-                        f'</div>'
-                        f'<div><span class="metric">52주고가 <b>{c["d52"]:+.1f}%</b></span>'
-                        f'<span class="metric">거래대금 <b>{c["avg_value_억"]:,.0f}억</b></span>'
-                        f'<span class="metric">🎯 기대목표 <b style="color:#ffd54f;">{c["close"]*(1+A_TARGET_MED):,.0f}원 (+9%)</b></span>'
-                        f'<span class="metric">잘 풀리면 <b>{c["close"]*(1+A_TARGET_WIN):,.0f}원 (+16%)</b></span></div>'
-                        f'</div>', unsafe_allow_html=True)
+                with st.spinner("현재가 조회 중... (5분 캐시)"):
+                    for c in cands:
+                        isbuy = c["code"] in newset
+                        buy_pill = '<span class="pill" style="background:#00c853;color:#08210f;">🎯 오늘 매수</span>' if isbuy else ''
+                        earn_pill = ''
+                        if c.get("earn") == "GOOD":
+                            yy = c.get("earn_yoy")
+                            earn_pill = f'<span class="pill" style="background:#3b2a06;color:#ffc107;">🚀 실적 {"+%.0f%%" % yy if yy is not None else "흑자전환"} · 비중1.5x</span>'
+                        o_td, cur, is_td = live_quote(c["code"])
+                        buy = o_td if o_td else c["close"]          # 매수가 = 오늘 시가 (장 전엔 전일종가 기준)
+                        cur = cur if cur else c["close"]
+                        chg = (cur / buy - 1) * 100
+                        cur_col = "#4ade80" if chg >= 0 else "#ff8a80"
+                        st.markdown(
+                            f'<div class="cand-card{" buy" if isbuy else ""}">'
+                            f'<div style="display:flex;justify-content:space-between;align-items:center;">'
+                            f'<div><span class="cand-name">{c["name"]}</span><span class="cand-code">{c["code"]}</span>{buy_pill}{earn_pill}</div>'
+                            f'<div style="font-size:17px;font-weight:700;color:{cur_col};">{cur:,.0f}<span style="font-size:12px;color:#718096;">원</span></div>'
+                            f'</div>'
+                            f'<div><span class="metric">매수가 <b>{buy:,.0f}원{"" if o_td else "*"}</b></span>'
+                            f'<span class="metric">현재가 <b style="color:{cur_col};">{cur:,.0f}원 ({chg:+.1f}%)</b></span>'
+                            f'<span class="metric">1차 목표 <b style="color:#ffd54f;">{buy*(1+A_TARGET_MED):,.0f}원 (+9%)</b></span>'
+                            f'<span class="metric">2차 목표 <b style="color:#ffd54f;">{buy*(1+A_TARGET_WIN):,.0f}원 (+16%)</b></span>'
+                            f'<span class="metric">52주고가 <b>{c["d52"]:+.1f}%</b></span>'
+                            f'<span class="metric">거래대금 <b>{c["avg_value_억"]:,.0f}억</b></span></div>'
+                            f'</div>', unsafe_allow_html=True)
+                st.caption("＊ 장 시작 전에는 전일 종가를 매수가 기준으로 표시 · 현재가는 5분 캐시")
             else:
                 st.markdown("""<div class="cand-card" style="text-align:center;color:#718096;padding:22px;">
                   오늘은 조건 통과 종목이 없습니다 — 신고가권이 마른 조정 구간엔 쉬는 것도 전략입니다 😌</div>""", unsafe_allow_html=True)
@@ -239,25 +266,34 @@ with tab1:
                   <div style="background:#123a5c;border-radius:8px;padding:4px 14px;font-size:14px;font-weight:700;color:#7cc7ff;">🔵 B트랙 — 초대형 과매도 회귀</div>
                   <div style="color:#4a5568;font-size:12px;margin-left:10px;">+5% 지정가 익절 · 15일 · 승률 ~73%</div></div>""", unsafe_allow_html=True)
                 newb = set(saved.get("new_entries_b", []))
-                for c in cands_b:
-                    isbuy = c["code"] in newb
-                    buy_pill = '<span class="pill" style="background:#2d6cdf;color:#eaf3ff;">🔵 오늘 매수</span>' if isbuy else ''
-                    flow = f"{c['flow20']:+.1f}%" if c.get("flow20") is not None else "N/A"
-                    flow_col = "#4ade80" if (c.get("flow20") or 0) > 0 else "#ff8a80"
-                    st.markdown(
-                        f'<div class="cand-card{" buyb" if isbuy else ""}">'
-                        f'<div style="display:flex;justify-content:space-between;align-items:center;">'
-                        f'<div><span class="cand-name">{c["name"]}</span><span class="cand-code">{c["code"]}</span>{buy_pill}</div>'
-                        f'<div style="font-size:17px;font-weight:700;color:#e2e8f0;">{c["close"]:,.0f}<span style="font-size:12px;color:#718096;">원</span></div>'
-                        f'</div>'
-                        f'<div><span class="metric">RSI(2) <b>{c["rsi2"]}</b></span>'
-                        f'<span class="metric">외인 20일수급 <b style="color:{flow_col};">{flow}</b></span>'
-                        f'<span class="metric">200일선 <b>{c["ma200_dist"]:+.1f}%</b></span>'
-                        f'<span class="metric">목표 <b style="color:#4ade80;">{c["close"]*1.05:,.0f}원</b></span>'
-                        + (f'<span class="metric">2차 목표 <b style="color:#ffd54f;">{min(c["close"]+0.618*(c["hi20"]-c["close"]), c["close"]*1.12):,.0f}원</b></span>'
-                           if c.get("hi20") and min(c["close"]+0.618*(c["hi20"]-c["close"]), c["close"]*1.12) > c["close"]*1.05 else '')
-                        + f'</div>'
-                        f'</div>', unsafe_allow_html=True)
+                with st.spinner("현재가 조회 중..."):
+                    for c in cands_b:
+                        isbuy = c["code"] in newb
+                        buy_pill = '<span class="pill" style="background:#2d6cdf;color:#eaf3ff;">🔵 오늘 매수</span>' if isbuy else ''
+                        flow = f"{c['flow20']:+.1f}%" if c.get("flow20") is not None else "N/A"
+                        flow_col = "#4ade80" if (c.get("flow20") or 0) > 0 else "#ff8a80"
+                        o_td, cur, is_td = live_quote(c["code"])
+                        buy = o_td if o_td else c["close"]
+                        cur = cur if cur else c["close"]
+                        chg = (cur / buy - 1) * 100
+                        cur_col = "#4ade80" if chg >= 0 else "#ff8a80"
+                        t2 = min(buy + 0.618 * (c["hi20"] - buy), buy * 1.12) if c.get("hi20") and c["hi20"] > buy else 0
+                        t2_html = (f'<span class="metric">2차 목표 <b style="color:#ffd54f;">{t2:,.0f}원 (+{(t2/buy-1)*100:.1f}%)</b></span>'
+                                   if t2 > buy * 1.05 else '')
+                        st.markdown(
+                            f'<div class="cand-card{" buyb" if isbuy else ""}">'
+                            f'<div style="display:flex;justify-content:space-between;align-items:center;">'
+                            f'<div><span class="cand-name">{c["name"]}</span><span class="cand-code">{c["code"]}</span>{buy_pill}</div>'
+                            f'<div style="font-size:17px;font-weight:700;color:{cur_col};">{cur:,.0f}<span style="font-size:12px;color:#718096;">원</span></div>'
+                            f'</div>'
+                            f'<div><span class="metric">매수가 <b>{buy:,.0f}원{"" if o_td else "*"}</b></span>'
+                            f'<span class="metric">현재가 <b style="color:{cur_col};">{cur:,.0f}원 ({chg:+.1f}%)</b></span>'
+                            f'<span class="metric">1차 목표 <b style="color:#4ade80;">{buy*1.05:,.0f}원 (+5%)</b></span>'
+                            f'{t2_html}'
+                            f'<span class="metric">RSI(2) <b>{c["rsi2"]}</b></span>'
+                            f'<span class="metric">외인 20일수급 <b style="color:{flow_col};">{flow}</b></span>'
+                            f'<span class="metric">200일선 <b>{c["ma200_dist"]:+.1f}%</b></span></div>'
+                            f'</div>', unsafe_allow_html=True)
         else:
             st.info("이전 버전(v13) 결과 파일입니다. 내일 아침 봇 실행 후 v14 형식으로 갱신됩니다.")
     else:
