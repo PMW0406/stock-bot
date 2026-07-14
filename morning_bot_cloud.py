@@ -159,6 +159,28 @@ def save_history(h):
         json.dump(h, f, ensure_ascii=False, indent=2)
 
 
+def _target_flags(df, p, exit_date, track):
+    """청산 기록용 1·2차 목표가와 달성 플래그 (표시·KPI용).
+    A: 1차 +9%(기대)/2차 +16%(잘풀리면) · B: 1차 +5%/2차 어깨(진입가 기준 낙폭 61.8% 되돌림, 캡 +12%)"""
+    try:
+        e = p["entry_price"]
+        window = df[(df.index >= p["entry_date"]) & (df.index <= exit_date)]
+        maxh = float(window["High"].max())
+        if track == "A":
+            t1, t2 = e * (1 + A_TARGET_MED), e * (1 + A_TARGET_WIN)
+        else:
+            t1 = e * (1 + B_TARGET)
+            pre = df[df.index < p["entry_date"]]
+            hi20 = float(pre["High"].iloc[-20:].max()) if len(pre) else 0
+            t2 = min(e + B_TARGET2_FIB * (hi20 - e), e * (1 + B_TARGET2_CAP)) if hi20 > e else 0
+            if t2 <= t1:
+                t2 = 0
+        return {"t1": round(t1, 2), "t2": round(t2, 2) if t2 else None,
+                "hit1": bool(maxh >= t1), "hit2": bool(t2 and maxh >= t2)}
+    except Exception:
+        return {}
+
+
 def update_positions(hist):
     """보유 포지션 갱신: pending 체결확정/갭취소 → 손절 체크 → 만기 체크"""
     today_str = now_kst().strftime("%Y-%m-%d")
@@ -206,6 +228,7 @@ def update_positions(hist):
                         "entry_date": p["entry_date"], "entry_price": p["entry_price"],
                         "exit_date": hit.index[0], "exit_price": p["target_price"],
                         "ret_pct": round(B_TARGET * 100, 2), "reason": f"목표 +{B_TARGET*100:.0f}%",
+                        **_target_flags(df, p, hit.index[0], "B"),
                     })
                     sell_alerts.append({"name": p["name"], "code": p["code"],
                                         "msg": f"🎯 [B트랙] 목표가 {p['target_price']:,.0f}원 도달 ({hit.index[0]}) — 지정가 미체결시 오늘 매도"})
@@ -217,6 +240,7 @@ def update_positions(hist):
                         "entry_date": p["entry_date"], "entry_price": p["entry_price"],
                         "exit_date": held.index[-1], "exit_price": cur,
                         "ret_pct": round(ret, 2), "reason": f"{B_HOLD}일 만기(B)",
+                        **_target_flags(df, p, held.index[-1], "B"),
                     })
                     sell_alerts.append({"name": p["name"], "code": p["code"],
                                         "msg": f"⏰ [B트랙] {B_HOLD}거래일 만기 ({ret:+.1f}%) — 오늘 매도"})
@@ -241,6 +265,7 @@ def update_positions(hist):
                         "entry_date": p["entry_date"], "entry_price": p["entry_price"],
                         "exit_date": breach_date, "exit_price": breach_close,
                         "ret_pct": round(ret_stop, 2), "reason": "손절 -10%(종가)",
+                        **_target_flags(df, p, breach_date, "A"),
                     })
                     sell_alerts.append({"name": p["name"], "code": p["code"],
                                         "msg": f"🛑 종가가 손절선 {p['stop_price']:,.0f}원 이탈 ({breach_date}, {ret_stop:+.1f}%) — 오늘 매도"})
@@ -253,6 +278,7 @@ def update_positions(hist):
                         "entry_date": p["entry_date"], "entry_price": p["entry_price"],
                         "exit_date": held.index[-1], "exit_price": cur,
                         "ret_pct": round(ret, 2), "reason": f"{HOLD_DAYS}일 만기",
+                        **_target_flags(df, p, held.index[-1], "A"),
                     })
                     sell_alerts.append({"name": p["name"], "code": p["code"],
                                         "msg": f"⏰ {HOLD_DAYS}거래일 만기 (수익 {ret:+.1f}%) — 오늘 매도"})

@@ -401,6 +401,23 @@ with tab2:
                   <div style="color:#a0aec0;font-size:12px;font-weight:600;letter-spacing:1px;margin-bottom:6px;">{t}</div>
                   <div style="font-size:26px;font-weight:700;color:{vc};">{v}</div>
                   <div style="color:#4a5568;font-size:11px;margin-top:4px;">{s}</div></div>""", unsafe_allow_html=True)
+
+            # 목표 도달률 KPI (1·2차 플래그가 있는 청산 건 기준)
+            flagged = [c for c in closed if c.get("t1")]
+            if flagged:
+                parts = []
+                for tr, l1, l2 in (("A", "+9% 기대", "+16% 잘풀리면"), ("B", "+5% 목표", "어깨")):
+                    g = [c for c in flagged if c.get("track", "A") == tr]
+                    if g:
+                        h1 = sum(1 for c in g if c.get("hit1")) / len(g) * 100
+                        g2 = [c for c in g if c.get("t2")]
+                        h2 = (sum(1 for c in g2 if c.get("hit2")) / len(g2) * 100) if g2 else None
+                        p = f"<b style='color:#63b3ed;'>{tr}트랙</b> 1차({l1}) <b style='color:#4ade80;'>{h1:.0f}%</b>"
+                        if h2 is not None:
+                            p += f" · 2차({l2}) <b style='color:#ffd54f;'>{h2:.0f}%</b>"
+                        parts.append(p + f" <span style='color:#4a5568;'>({len(g)}건)</span>")
+                st.markdown(f"""<div style="background:#0d1117;border:1px solid #2d3748;border-radius:10px;padding:10px 16px;margin-top:10px;font-size:13px;color:#9fb0c3;">
+                  🎯 <b>목표 도달률</b> (보유기간 중 고가 터치 기준) — {' &nbsp;|&nbsp; '.join(parts)}</div>""", unsafe_allow_html=True)
             st.markdown("<br>", unsafe_allow_html=True)
 
         # ── 보유 포지션 카드 ──
@@ -470,6 +487,13 @@ with tab2:
                 for c in group:
                     is_stop = "손절" in c["reason"]
                     tag_bg, tag_fg = ("#3d1a1a", "#ff6b6b") if is_stop else ("#1a3d2a", "#4ade80")
+                    tgt_html = ""
+                    if c.get("t1"):
+                        m1 = ("<span style='color:#4ade80;'>✓</span>" if c.get("hit1") else "<span style='color:#556;'>✗</span>")
+                        tgt_html = f" &nbsp;·&nbsp; 1차 {c['t1']:,.0f} {m1}"
+                        if c.get("t2"):
+                            m2 = ("<span style='color:#4ade80;'>✓</span>" if c.get("hit2") else "<span style='color:#556;'>✗</span>")
+                            tgt_html += f" &nbsp;·&nbsp; 2차 {c['t2']:,.0f} {m2}"
                     st.markdown(f"""
 <div class="stock-card" style="padding:12px 18px;">
   <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -481,7 +505,7 @@ with tab2:
     <div style="font-size:18px;font-weight:700;color:{pct_color(c['ret_pct'])};">{c['ret_pct']:+.2f}%</div>
   </div>
   <div style="color:#718096;font-size:12px;margin-top:6px;">
-    {c['entry_date'][5:]} 진입 {c['entry_price']:,.0f}원 → {c['exit_date'][5:]} 청산 {c['exit_price']:,.0f}원
+    {c['entry_date'][5:]} 진입 {c['entry_price']:,.0f}원 → {c['exit_date'][5:]} 청산 {c['exit_price']:,.0f}원{tgt_html}
   </div>
 </div>""", unsafe_allow_html=True)
         else:
