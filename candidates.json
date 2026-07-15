@@ -1,40 +1,33 @@
 {
   "format": "v14",
-  "updated": "2026-07-15 07:54",
+  "updated": "2026-07-16 07:57",
   "regime_on": true,
-  "regime_msg": "코스피 6,857 vs 120일선 6,594 (+4.0%) — 매매 ON",
-  "candidates": [],
-  "new_entries": [],
-  "candidates_b": [
+  "regime_msg": "코스피 7,284 vs 120일선 6,614 (+10.1%) — 매매 ON",
+  "candidates": [
     {
-      "code": "004170",
-      "name": "신세계",
-      "close": 561000.0,
-      "rsi2": 9.5,
-      "ma200_dist": 57.6,
-      "avg_value": 63086036150.0,
-      "hi20": 792000.0,
-      "flow20": 10.7
-    },
+      "code": "131290",
+      "name": "티에스이",
+      "close": 284500.0,
+      "hi52": 294000.0,
+      "d52": -3.23,
+      "avg_value_억": 327.5,
+      "earn": "GOOD",
+      "earn_yoy": 1247.0
+    }
+  ],
+  "new_entries": [
+    "131290"
+  ],
+  "candidates_b": [
     {
       "code": "271560",
       "name": "오리온",
-      "close": 128400.0,
-      "rsi2": 6.9,
-      "ma200_dist": 6.4,
-      "avg_value": 17388730835.0,
+      "close": 127100.0,
+      "rsi2": 5.2,
+      "ma200_dist": 5.2,
+      "avg_value": 16349833615.0,
       "hi20": 145300.0,
-      "flow20": 10.3
-    },
-    {
-      "code": "003550",
-      "name": "LG",
-      "close": 96400.0,
-      "rsi2": 1.8,
-      "ma200_dist": 4.8,
-      "avg_value": 47592526405.0,
-      "hi20": 115000.0,
-      "flow20": 10.1
+      "flow20": 11.0
     }
   ],
   "new_entries_b": []
