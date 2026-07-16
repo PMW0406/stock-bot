@@ -9,24 +9,11 @@
       "entry_date": "2026-07-06",
       "entry_price": 501000.0,
       "target_price": 526050.0,
-      "current": 426000.0,
-      "ret_pct": -14.97,
-      "days_held": 8,
+      "current": 393000.0,
+      "ret_pct": -21.56,
+      "days_held": 9,
       "hi20": 803000.0,
       "target2_price": 561120.0
-    },
-    {
-      "code": "017670",
-      "name": "SK텔레콤",
-      "track": "B",
-      "entry_date": "2026-07-06",
-      "entry_price": 86800.0,
-      "target_price": 91140.0,
-      "current": 85000.0,
-      "ret_pct": -2.07,
-      "days_held": 8,
-      "hi20": 115700.0,
-      "target2_price": 94092.4
     },
     {
       "code": "011070",
@@ -36,9 +23,9 @@
       "entry_price": 739000.0,
       "ref_close": 742000.0,
       "target_price": 775950.0,
-      "current": 688000.0,
-      "ret_pct": -6.9,
-      "days_held": 3,
+      "current": 668000.0,
+      "ret_pct": -9.61,
+      "days_held": 4,
       "hi20": 1320000.0,
       "target2_price": 827680.0
     },
@@ -47,9 +34,12 @@
       "name": "티에스이",
       "track": "A",
       "entry_date": "2026-07-16",
-      "entry_price": null,
+      "entry_price": 281500.0,
       "ref_close": 284500.0,
-      "stop_price": null
+      "stop_price": 253350.0,
+      "current": 282500.0,
+      "ret_pct": 0.36,
+      "days_held": 1
     }
   ],
   "closed": [
@@ -680,6 +670,21 @@
       "reason": "목표 +5%",
       "t1": 657300.0,
       "t2": 701120.0,
+      "hit1": true,
+      "hit2": false
+    },
+    {
+      "code": "017670",
+      "name": "SK텔레콤",
+      "track": "B",
+      "entry_date": "2026-07-06",
+      "entry_price": 86800.0,
+      "exit_date": "2026-07-16",
+      "exit_price": 91140.0,
+      "ret_pct": 5.0,
+      "reason": "목표 +5%",
+      "t1": 91140.0,
+      "t2": 97216.0,
       "hit1": true,
       "hit2": false
     }
