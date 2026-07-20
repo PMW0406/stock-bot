@@ -9,9 +9,9 @@
       "entry_date": "2026-07-06",
       "entry_price": 501000.0,
       "target_price": 526050.0,
-      "current": 393000.0,
-      "ret_pct": -21.56,
-      "days_held": 9,
+      "current": 371500.0,
+      "ret_pct": -25.85,
+      "days_held": 10,
       "hi20": 803000.0,
       "target2_price": 561120.0
     },
@@ -23,9 +23,9 @@
       "entry_price": 739000.0,
       "ref_close": 742000.0,
       "target_price": 775950.0,
-      "current": 668000.0,
-      "ret_pct": -9.61,
-      "days_held": 4,
+      "current": 602000.0,
+      "ret_pct": -18.54,
+      "days_held": 5,
       "hi20": 1320000.0,
       "target2_price": 827680.0
     },
@@ -37,9 +37,19 @@
       "entry_price": 281500.0,
       "ref_close": 284500.0,
       "stop_price": 253350.0,
-      "current": 282500.0,
-      "ret_pct": 0.36,
-      "days_held": 1
+      "current": 258500.0,
+      "ret_pct": -8.17,
+      "days_held": 2
+    },
+    {
+      "code": "003490",
+      "name": "대한항공",
+      "track": "B",
+      "entry_date": "2026-07-21",
+      "entry_price": null,
+      "ref_close": 25350.0,
+      "target_price": null,
+      "hi20": 29700.0
     }
   ],
   "closed": [
