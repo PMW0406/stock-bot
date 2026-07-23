@@ -9,9 +9,9 @@
       "entry_date": "2026-07-06",
       "entry_price": 501000.0,
       "target_price": 526050.0,
-      "current": 401500.0,
-      "ret_pct": -19.86,
-      "days_held": 12,
+      "current": 430000.0,
+      "ret_pct": -14.17,
+      "days_held": 13,
       "hi20": 803000.0,
       "target2_price": 549822.0
     },
@@ -23,9 +23,9 @@
       "entry_price": 739000.0,
       "ref_close": 742000.0,
       "target_price": 775950.0,
-      "current": 647000.0,
-      "ret_pct": -12.45,
-      "days_held": 7,
+      "current": 679000.0,
+      "ret_pct": -8.12,
+      "days_held": 8,
       "hi20": 1320000.0,
       "target2_price": 827680.0
     },
@@ -39,9 +39,9 @@
       "target_price": 26460.0,
       "hi20": 29700.0,
       "target2_price": 27981.0,
-      "current": 24900.0,
-      "ret_pct": -1.19,
-      "days_held": 2
+      "current": 25750.0,
+      "ret_pct": 2.18,
+      "days_held": 3
     }
   ],
   "closed": [
