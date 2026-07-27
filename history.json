@@ -3,19 +3,6 @@
   "backfilled": "v14.9 2026-04-06~2026-07-06",
   "positions": [
     {
-      "code": "307950",
-      "name": "현대오토에버",
-      "track": "B",
-      "entry_date": "2026-07-06",
-      "entry_price": 501000.0,
-      "target_price": 526050.0,
-      "current": 379000.0,
-      "ret_pct": -24.35,
-      "days_held": 14,
-      "hi20": 803000.0,
-      "target2_price": 536844.0
-    },
-    {
       "code": "011070",
       "name": "LG이노텍",
       "track": "B",
@@ -23,25 +10,21 @@
       "entry_price": 739000.0,
       "ref_close": 742000.0,
       "target_price": 775950.0,
-      "current": 625000.0,
-      "ret_pct": -15.43,
-      "days_held": 9,
+      "current": 614000.0,
+      "ret_pct": -16.91,
+      "days_held": 10,
       "hi20": 1320000.0,
       "target2_price": 827680.0
     },
     {
-      "code": "003490",
-      "name": "대한항공",
+      "code": "402340",
+      "name": "SK스퀘어",
       "track": "B",
-      "entry_date": "2026-07-21",
-      "entry_price": 25200.0,
-      "ref_close": 25350.0,
-      "target_price": 26460.0,
-      "hi20": 29700.0,
-      "target2_price": 27981.0,
-      "current": 25450.0,
-      "ret_pct": 0.99,
-      "days_held": 4
+      "entry_date": "2026-07-28",
+      "entry_price": null,
+      "ref_close": 1096000.0,
+      "target_price": null,
+      "hi20": 1792000.0
     }
   ],
   "closed": [
@@ -703,6 +686,36 @@
       "t1": 306835.0,
       "t2": 326540.0,
       "hit1": false,
+      "hit2": false
+    },
+    {
+      "code": "307950",
+      "name": "현대오토에버",
+      "track": "B",
+      "entry_date": "2026-07-06",
+      "entry_price": 501000.0,
+      "exit_date": "2026-07-27",
+      "exit_price": 394000.0,
+      "ret_pct": -21.36,
+      "reason": "15일 만기(B)",
+      "t1": 526050.0,
+      "t2": 561120.0,
+      "hit1": false,
+      "hit2": false
+    },
+    {
+      "code": "003490",
+      "name": "대한항공",
+      "track": "B",
+      "entry_date": "2026-07-21",
+      "entry_price": 25200.0,
+      "exit_date": "2026-07-27",
+      "exit_price": 26460.0,
+      "ret_pct": 5.0,
+      "reason": "목표 +5%",
+      "t1": 26460.0,
+      "t2": 27981.0,
+      "hit1": true,
       "hit2": false
     }
   ],
