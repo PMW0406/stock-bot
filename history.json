@@ -10,9 +10,9 @@
       "entry_price": 739000.0,
       "ref_close": 742000.0,
       "target_price": 775950.0,
-      "current": 614000.0,
-      "ret_pct": -16.91,
-      "days_held": 10,
+      "current": 514000.0,
+      "ret_pct": -30.45,
+      "days_held": 11,
       "hi20": 1320000.0,
       "target2_price": 827680.0
     },
@@ -21,10 +21,24 @@
       "name": "SK스퀘어",
       "track": "B",
       "entry_date": "2026-07-28",
-      "entry_price": null,
+      "entry_price": 1007000.0,
       "ref_close": 1096000.0,
+      "target_price": 1057350.0,
+      "hi20": 1792000.0,
+      "target2_price": 1127840.0,
+      "current": 925000.0,
+      "ret_pct": -8.14,
+      "days_held": 1
+    },
+    {
+      "code": "003550",
+      "name": "LG",
+      "track": "B",
+      "entry_date": "2026-07-29",
+      "entry_price": null,
+      "ref_close": 93100.0,
       "target_price": null,
-      "hi20": 1792000.0
+      "hi20": 107900.0
     }
   ],
   "closed": [
