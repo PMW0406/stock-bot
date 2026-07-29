@@ -10,9 +10,9 @@
       "entry_price": 739000.0,
       "ref_close": 742000.0,
       "target_price": 775950.0,
-      "current": 514000.0,
-      "ret_pct": -30.45,
-      "days_held": 11,
+      "current": 458000.0,
+      "ret_pct": -38.02,
+      "days_held": 12,
       "hi20": 1320000.0,
       "target2_price": 827680.0
     },
@@ -26,19 +26,23 @@
       "target_price": 1057350.0,
       "hi20": 1792000.0,
       "target2_price": 1127840.0,
-      "current": 925000.0,
-      "ret_pct": -8.14,
-      "days_held": 1
+      "current": 850000.0,
+      "ret_pct": -15.59,
+      "days_held": 2
     },
     {
       "code": "003550",
       "name": "LG",
       "track": "B",
       "entry_date": "2026-07-29",
-      "entry_price": null,
+      "entry_price": 93600.0,
       "ref_close": 93100.0,
-      "target_price": null,
-      "hi20": 107900.0
+      "target_price": 98280.0,
+      "hi20": 107900.0,
+      "target2_price": 102437.4,
+      "current": 92200.0,
+      "ret_pct": -1.5,
+      "days_held": 1
     }
   ],
   "closed": [
