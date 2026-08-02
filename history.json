@@ -10,9 +10,9 @@
       "entry_price": 739000.0,
       "ref_close": 742000.0,
       "target_price": 775950.0,
-      "current": 424000.0,
-      "ret_pct": -42.63,
-      "days_held": 13,
+      "current": 514000.0,
+      "ret_pct": -30.45,
+      "days_held": 14,
       "hi20": 1320000.0,
       "target2_price": 827680.0
     },
@@ -26,19 +26,9 @@
       "target_price": 1057350.0,
       "hi20": 1792000.0,
       "target2_price": 1127840.0,
-      "current": 799000.0,
-      "ret_pct": -20.66,
-      "days_held": 3
-    },
-    {
-      "code": "032830",
-      "name": "삼성생명",
-      "track": "B",
-      "entry_date": "2026-07-31",
-      "entry_price": null,
-      "ref_close": 264000.0,
-      "target_price": null,
-      "hi20": 398500.0
+      "current": 1038000.0,
+      "ret_pct": 3.08,
+      "days_held": 4
     }
   ],
   "closed": [
@@ -744,6 +734,21 @@
       "reason": "목표 +5%",
       "t1": 98280.0,
       "t2": 102437.4,
+      "hit1": true,
+      "hit2": false
+    },
+    {
+      "code": "032830",
+      "name": "삼성생명",
+      "track": "B",
+      "entry_date": "2026-07-31",
+      "entry_price": 296500.0,
+      "exit_date": "2026-07-31",
+      "exit_price": 311325.0,
+      "ret_pct": 5.0,
+      "reason": "목표 +5%",
+      "t1": 311325.0,
+      "t2": 332080.0,
       "hit1": true,
       "hit2": false
     }
