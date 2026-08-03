@@ -1,36 +1,7 @@
 {
   "format": "v14",
   "backfilled": "v14.9 2026-04-06~2026-07-06",
-  "positions": [
-    {
-      "code": "011070",
-      "name": "LG이노텍",
-      "track": "B",
-      "entry_date": "2026-07-13",
-      "entry_price": 739000.0,
-      "ref_close": 742000.0,
-      "target_price": 775950.0,
-      "current": 514000.0,
-      "ret_pct": -30.45,
-      "days_held": 14,
-      "hi20": 1320000.0,
-      "target2_price": 827680.0
-    },
-    {
-      "code": "402340",
-      "name": "SK스퀘어",
-      "track": "B",
-      "entry_date": "2026-07-28",
-      "entry_price": 1007000.0,
-      "ref_close": 1096000.0,
-      "target_price": 1057350.0,
-      "hi20": 1792000.0,
-      "target2_price": 1127840.0,
-      "current": 1038000.0,
-      "ret_pct": 3.08,
-      "days_held": 4
-    }
-  ],
+  "positions": [],
   "closed": [
     {
       "code": "141080",
@@ -749,6 +720,36 @@
       "reason": "목표 +5%",
       "t1": 311325.0,
       "t2": 332080.0,
+      "hit1": true,
+      "hit2": false
+    },
+    {
+      "code": "011070",
+      "name": "LG이노텍",
+      "track": "B",
+      "entry_date": "2026-07-13",
+      "entry_price": 739000.0,
+      "exit_date": "2026-08-03",
+      "exit_price": 513000.0,
+      "ret_pct": -30.58,
+      "reason": "15일 만기(B)",
+      "t1": 775950.0,
+      "t2": 827680.0,
+      "hit1": false,
+      "hit2": false
+    },
+    {
+      "code": "402340",
+      "name": "SK스퀘어",
+      "track": "B",
+      "entry_date": "2026-07-28",
+      "entry_price": 1007000.0,
+      "exit_date": "2026-08-03",
+      "exit_price": 1057350.0,
+      "ret_pct": 5.0,
+      "reason": "목표 +5%",
+      "t1": 1057350.0,
+      "t2": 1127840.0,
       "hit1": true,
       "hit2": false
     }
